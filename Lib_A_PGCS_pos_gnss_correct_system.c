@@ -1,7 +1,7 @@
-/** 
+/**
  * @file   	%<%NAME%>%.%<%EXTENSION%>%
  * @author 	%<%USER%>%
- * @version	
+ * @version
  * @date 	%<%DATE%>%, %<%TIME%>%
  * @brief
  */
@@ -25,6 +25,43 @@
 
 
 /*#### |Begin| --> Секция - "Описание глобальных функций" ####################*/
+void
+PGCS_StructInit(
+	pgcs_data_init_s *pInit_s)
+{
+
+}
+
+void
+PGCS_Init_All(
+	pgcs_data_s *pData_s,
+	pgcs_data_init_s *pInit_s)
+{
+
+}
+
+void
+PGCS_UpdatePosState(
+	pgcs_data_s *pData_s)
+{
+
+}
+
+void
+PGCS_CopyVelInWorldFrame(
+	pgcs_data_s *pData_s,
+	__PGCS_FPT__ *pVel)
+{
+
+}
+
+void
+PGCS_CopyLatLOnAltInWorldFrame(
+	pgcs_data_s *pData_s,
+	__PGCS_FPT__ *pLatLonAlt)
+{
+
+}
 /*#### |End  | <-- Секция - "Описание глобальных функций" ####################*/
 
 
