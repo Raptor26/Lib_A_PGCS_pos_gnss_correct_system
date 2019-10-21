@@ -202,7 +202,7 @@ typedef struct
 typedef struct
 {
 	ukfmo_matrix_s mat_s;
-	__VGCS_FPT__ memForMatrix[PGCS_LEN_SIGMA_COL][1u];
+	__PGCS_FPT__ memForMatrix[PGCS_LEN_SIGMA_COL][1u];
 } pgcs_matrix_7_1_s;
 
 /*-------------------------------------------------------------------------*//**
@@ -211,7 +211,7 @@ typedef struct
 typedef struct
 {
 	ukfmo_matrix_s mat_s;
-	__VGCS_FPT__ memForMatrix[VGCS_LEN_SIGMA_ROW][VGCS_LEN_SIGMA_COL];
+	__PGCS_FPT__ memForMatrix[VGCS_LEN_SIGMA_ROW][VGCS_LEN_SIGMA_COL];
 } pgcs_matrix_3_7_s;
 
 /*-------------------------------------------------------------------------*//**
@@ -317,6 +317,7 @@ typedef struct
 
 //#define __PGCS_UpdateDt(__pData_s__, __dt__) ((__pData_s__)->kinData_s.dt = (__dt__))
 
+/* @todo Подпиши что за флаги, за что они отвечают */
 #define __PGCS_SetFlagVelDataUpdate() 		(pData_s->kinData_s.isNewVel_flag 	= 1u)
 #define __PGCS_ReSetFlagVelDataUpdate() 	(pData_s->kinData_s.isNewVel_flag 	= 0u)
 #define __PGCS_IsFlagVelDataUpdateSet() 	(pData_s->kinData_s.isNewVel_flag 	== 1u)
@@ -329,6 +330,7 @@ typedef struct
 #define __PGCS_ReSetFlagPosZDataUpdate() 	(pData_s->kinData_s.isNewPosZ_flag 	= 0u)
 #define __PGCS_IsFlagPosZDataUpdateSet() 	(pData_s->kinData_s.isNewPosZ_flag 	== 1u)
 
+/* @todo я этот флаг планировал использовать как маркер, сигналазирующий о поступлении данныъ от GNSS модуля */
 #define __PGCS_SetFlagPosDataUpdate() 		(pData_s->kinData_s.isNewPos_flag 	= 1u)
 #define __PGCS_ReSetFlagPosDataUpdate() 	(pData_s->kinData_s.isNewPos_flag 	= 0u)
 #define __PGCS_IsFlagPosDataUpdateSet() 	(pData_s->kinData_s.isNewPos_flag 	== 1u)

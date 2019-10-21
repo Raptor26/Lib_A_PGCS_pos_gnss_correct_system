@@ -25,6 +25,9 @@
 
 
 /*#### |Begin| --> Секция - "Описание глобальных функций" ####################*/
+
+/* @todo Эти определения перенеси в .h и сделай так, чтобы компилятор "ругался", 
+ * если явно не выбран метод проекции */
 #ifndef __PGCS_BACKPROJECTMETHOD
 	#define __PGCS_BackProjectCoordSys(x)	PGCS_FlatToLLA(x)
 #elif (__PGCS_BACKPROJECTMETHOD == 1)
@@ -42,7 +45,7 @@ PGCS_StructInit(
 	pInit_s->scalParams_s.beta 		= (__PGCS_FPT__) 2.0;
 	pInit_s->scalParams_s.kappa 	= (__PGCS_FPT__) 0.0;
 
-	/* @TODO Сброс периода интегрирования */
+	/* Сброс периода интегрирования */
 	pInit_s->dt = (__PGCS_FPT__) 0.0;
 
 	/* Сброс в нуль: */
@@ -59,12 +62,18 @@ PGCS_Init_All(
 	pgcs_data_s *pData_s,
 	pgcs_data_init_s *pInit_s)
 {
+	/* @todo Сделанй проверку периода интегрирования, если он равен нулю, чтобы эта функиця зацикливалась */
+
 	/* Обновление периода интегрирования */
 	PGCS_UpdateDt(pData_s, pInit_s->dt);
 
 	/* Задание указателей вектора dpos на результат интегрирования в структурах типа ninteg_trapz_s */
 	for (uint8_t i = 0; i < PGCS_LEN_STATE; i++)
+
+		/* Есть предположение, что не до конца ясен способ работы с библиотекой интегрирования */
 		pData_s->kinData_s.flat_dpos[i] = &(pData_s->kinData_s.flat_pos_integ[i].deltaData);
+
+	/* @todo А где ты инициализируешь структуру типа "ninteg_trapz_s", иначе функция интегрирования работать не будет */
 }
 
 void
@@ -77,8 +86,9 @@ PGCS_UpdatePosState(
 		__PGCS_ReSetFlagVelDataUpdate();
 	}
 
+	/* Выполнение проекции приращения местоположения из нормальной Земной СК 
+	 * (модели плоской Земли) в приращение долготы/широты/высоты */
 	__PGCS_BackProjectCoordSys(pData_s);
-
 
 }
 
@@ -89,6 +99,7 @@ PGCS_CopyVelInWorldFrame(
 {
 	if !(__PGCS_IsFlagVelDataUpdateSet())
 	{
+		/* @todo раскрути цикл, количество параметров не измениться */
 		for (uint8_t i = 0; i < PGCS_LEN_STATE; i++)
 			pData_s->kinData_s.flat_vel[i] = *pVel++;
 		__PGCS_SetFlagVelDataUpdate();
@@ -102,6 +113,7 @@ PGCS_CopyLatLonAltInWorldFrame(
 {
 	if !(__PGCS_IsFlagPosDataUpdateSet())
 	{
+		/* @todo раскрути цикл, количество параметров не измениться */
 		for (uint8_t i = 0; i < PGCS_LEN_STATE; i++)
 			pData_s->kinData_s.lla_pos_zero[i] = *pLatLonAlt++;
 		__PGCS_SetFlagPosDataUpdate();
@@ -169,21 +181,32 @@ void
 PGCS_FlatToLLA(
 	pgcs_data_s *pData_s)
 {
-	__PGCS_FPT__ re = 6378137.0;
-	__PGCS_FPT__ re_c = re * __PGCS_cos((pi / 180) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
-	pData_s->kinData_s.lla_pos[0] = *pData_s->kinData_s.flat_dpos[1] * 180. / (pi * re) + pData_s->kinData_s.lla_pos_zero[0];
-	pData_s->kinData_s.lla_pos[1] = *pData_s->kinData_s.flat_dpos[0] * 180. / (pi * re_c) + pData_s->kinData_s.lla_pos_zero[1];
+	/* @todo константу объяви как #define */
+	__PGCS_FPT__ re = (__PGCS_FPT__) 6378137.0;
+	__PGCS_FPT__ re_c = re * __PGCS_cos((pi / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
+
+	/* @todo Ты ведь выполняешь проекцию не местоположения, а приращения местоположения, может стоит это явно указать в имени переменной 
+	 * pData_s->kinData_s.lla_pos[0] заменить на pData_s->kinData_s.lla_deltaPos[0]
+	 */
+	pData_s->kinData_s.lla_pos[0] = *pData_s->kinData_s.flat_dpos[1] * ((__PGCS_FPT__) 180.0) / (pi * re) + pData_s->kinData_s.lla_pos_zero[0];
+	pData_s->kinData_s.lla_pos[1] = *pData_s->kinData_s.flat_dpos[0] * ((__PGCS_FPT__) 180.0) / (pi * re_c) + pData_s->kinData_s.lla_pos_zero[1];
 	pData_s->kinData_s.lla_pos[2] = *pData_s->kinData_s.flat_dpos[2] + pData_s->kinData_s.lla_pos_zero[2];
 
+
+	/* @todo смотри описание этого флага в .h */
 	__PGCS_SetFlagPosDataUpdate();
 }
 
+/* @todo Эта функция ведь получает приращение местоположения в нормальной земной СК (т.е. в модели плоской Земли), почему функция
+ * называется PGCS_IntegrateLLA() вместо PGCS_IntegrateFLatEath()?  */
 void 
 PGCS_IntegrateLLA(
 	pgcs_data_s *pData_s)
 {
+	/* @todo раскрути цикл, количество параметров не измениться */
 	for (uint8_t i = 0; i < PGCS_LEN_STATE; i++)
 	{
+		/* Получение приращения местоположения в нормальной земной СК */
 		NINTEG_Trapz(&(pData_s->kinData_s.flat_pos_integ[i]), pData_s->kinData_s.flat_vel[i]);
 		//pData_s->kinData_s.flat_dpos[i] = pData_s->kinData_s.flat_pos_integ[i].deltaData;
 	}
