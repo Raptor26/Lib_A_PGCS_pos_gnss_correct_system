@@ -22,6 +22,7 @@
 /*==== |End  | <-- Секция - "MK peripheral libraries" ========================*/
 
 /*==== |Begin| --> Секция - "Extern libraries" ===============================*/
+#include <math.h>
 #include "Lib_A_UKFMO_ukf_matrix_operations.h"
 #include "Lib_A_UKFSIF_ukf_standart_init_fnc.h"
 #include "Lib_A_NINTEG_numerical_integration.h"
@@ -30,7 +31,7 @@
 
 
 /*#### |Begin| --> Секция - "Определение констант" ###########################*/
-#if defined (__PGCS_EXTERN_MODE_ENABLE__)
+#ifdef(__PGCS_EXTERN_MODE_ENABLE__)
 	#include "macros_definitions.h"
 #endif
 
@@ -46,29 +47,29 @@
 /*==== |End  | <-- Секция определения метода обратной проекции ===============*/
 
 /*==== |Begin| --> Секция определения типа числа с плавающей точкой ==========*/
-#if !defined (__PGCS_FPT__)
+#ifndef (__PGCS_FPT__)
 	#error "Please, set __PGCS_FPT__ to float or double in macros list"
 #endif
 
-#if !defined (__PGCS_FPT_SIZE__)
+#ifndef (__PGCS_FPT_SIZE__)
 	#error "Please, set __PGCS_FPT_SIZE__ to 4 (that means float) or 8 (that means double) in macros list"
 #endif
 
 #if     __PGCS_FPT_SIZE__ == 4
-	#define __PGCS_sqrt(x) 	sqrtf(x)
-	#define __PGCS_pow(x, y)  powf(x, y)
-	#define __PGCS_atan(x) atanf(x)
-	#define __PGCS_atan2(x, y) atan2f(x, y)
-	#define __PGCS_cos(x) cosf(x)
-	#define __PGCS_fabs(x) fabsf(x)
+	#define __PGCS_sqrt(x)		sqrtf(x)
+	#define __PGCS_pow(x, y)	powf(x, y)
+	#define __PGCS_atan(x)		atanf(x)
+	#define __PGCS_atan2(x, y)	atan2f(x, y)
+	#define __PGCS_cos(x)		cosf(x)
+	#define __PGCS_fabs(x)		fabsf(x)
 
 #elif   __PGCS_FPT_SIZE__ == 8
-	#define __PGCS_sqrt(x) 	sqrt(x)
-	#define __PGCS_pow(x)  pow(x)
-	#define __PGCS_atan(x) atan(x)
-	#define __PGCS_atan2(x, y) atan2(x, y)
-	#define __PGCS_cos(x) cos(x)
-	#define __PGCS_fabs(x) fabs(x)
+	#define __PGCS_sqrt(x)		sqrt(x)
+	#define __PGCS_pow(x)		pow(x)
+	#define __PGCS_atan(x)		atan(x)
+	#define __PGCS_atan2(x, y)	atan2(x, y)
+	#define __PGCS_cos(x)		cos(x)
+	#define __PGCS_fabs(x)		fabs(x)
 
 #else
 	#error "Your compiler uses a non-standard floating point size"
@@ -80,12 +81,12 @@
 
 	/* inline*/
 	#ifndef __PGCS_INLINE
-		#define __PGCS_INLINE          inline
+		#define __PGCS_INLINE 			inline
 	#endif
 
 	/* static inline */
 	#ifndef __PGCS_STATIC_INLINE
-		#define __PGCS_STATIC_INLINE   static inline
+		#define __PGCS_STATIC_INLINE	static inline
 	#endif
 
 	/* always inline */
@@ -95,12 +96,12 @@
 
 	/* force inline */
 	#ifndef __PGCS_FORCE_INLINE
-		#define __PGCS_FORCE_INLINE    inline __attribute__((always_inline))
+		#define __PGCS_FORCE_INLINE 	inline __attribute__((always_inline))
 	#endif
 
 #else
 	#define __PGCS_INLINE
-	#define __PGCS_STATIC_INLINE   static
+	#define __PGCS_STATIC_INLINE 		static
 	#define __PGCS_ALWAYS_INLINE
 #endif
 /*==== |End  | <-- Секция - Макросы для встраиваемых функций =================*/
@@ -136,6 +137,17 @@
 /*==== |End  | <-- Секция - Выбор метода численного интегрирования ===========*/
 
 /*-------------------------------------------------------------------------*//**
+ * @brief  Константа, определяющая длину большой полуоси Земли для операции
+ *  обратной проекции
+ */
+#define PGCS_RE		(__PGCS_FPT__)6378137.0
+
+/*-------------------------------------------------------------------------*//**
+ * @brief  Переопределение числа Пи из стандартной библиотеки math.h
+ */
+#define PGCS_PI 	(__PGCS_FPT__)M_PI
+
+/*-------------------------------------------------------------------------*//**
  * @brief  Перечисляемый тип, задающий расположение параметров системы в векторе
  *         пространства состояний
  */
@@ -150,7 +162,7 @@ typedef enum
 	PGCS_LEN_STATE,
 } pgcs_state_param_position_e;
 
-#define  vgcs_fnc_status_e 		ukfmo_fnc_status_e
+#define  pgcs_fnc_status_e 		ukfmo_fnc_status_e
 
 /*-------------------------------------------------------------------------*//**
  * @brief    Количество строк матрицы сигма-точек
@@ -258,9 +270,9 @@ typedef struct
 	size_t 			isNewVel_flag;
 
 	/*------------------------------------------------------------------------*//**
-	 * @brief 	Указатель на вектор приращения позиции в проекционной системе
+	 * @brief 	Вектор приращения позиции в проекционной системе
 	 */
-	__PGCS_FPT__ *flat_dpos[3u];
+	__PGCS_FPT__ flat_dpos[3u];
 	size_t 			isNewDPos_flag;
 
 	/*------------------------------------------------------------------------*//**
@@ -281,7 +293,162 @@ typedef struct
 
 typedef struct
 {
+	/*------------------------------------------------------------------------*//**
+	 * @brief Вектор пространства состояний
+	 *
+	 * @warning Удалить! @see "x_predict_temp_s"
+	 */
+	pgcs_matrix_3x3_s 	stateMat_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрицы шумов
+	 */
+	pgcs_noise_matrix_s noiseMatrix_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрицы ковариации ("P_k-1")
+	 */
+//	pgcs_matrix_3x3_s 	covMat_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Корень квадратный от матрицы ковариации ("sqrt P")
+	 */
+	pgcs_matrix_3x3_s 	sqrtP_apriori_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица распределения сигма-точек (chi_k-1)
+	 */
+	pgcs_matrix_3_7_s 	chiSigmaMat_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица сигма-точек (после функции преобразования) (chi_k|k-1)
+	 */
+	pgcs_matrix_3_7_s 	chiSigmaPostMat_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Структура, содержащая скалярные параметры фильтра
+	 */
+	pgcs_scalar_params_s scalar_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Матрица x_k|k-1
+	 */
+	pgcs_matrix_3_1_s x_apriori_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Матрица x_k
+	 */
+	pgcs_matrix_3_1_s x_posteriori_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Матрица для хранения временных данных (используется на шаге Calculate the sigma-points)
+	 */
+	pgcs_matrix_3x3_s x_predict_temp_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Единичная матрица (используется на шаге Calculate the sigma-points)
+	 */
+	pgcs_matrix_1_3_s x_predict_temp_ones_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Вектор-столбец весовых коэффициентов
+	 */
+	pgcs_matrix_7_1_s muMean_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Вектор-столбец весовых коэффициентов
+	 */
+	pgcs_matrix_7_1_s muCovar_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Вектор-столбец для хранения промежуточных результатов
+	 *         (используется на шаге Calculate covariance of predicted state)
+	 */
+	pgcs_matrix_3_1_s chi_apriory_minus_x_apriory_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Вектор-столбец для хранения промежуточных результатов
+	 *         (используется на шаге Calculate covariance of predicted state)
+	 */
+	pgcs_matrix_3_1_s chi_apriory_minus_x_apriory_Transpose_s;
+
+	/*------------------------------------------------------------------------*//**
+	* @brief  Матрицы для хранения промежуточных результатов
+	*         (используется на шаге Calculate covariance of predicted state)
+	*/
+	pgcs_matrix_3x3_s resultOfMult2Matrix_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица P_k|k-1
+	 */
+	pgcs_matrix_3x3_s P_apriori_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица P_k-1
+	 */
+	pgcs_matrix_3x3_s P_predict_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица psi_k|k-1
+	 */
+	pgcs_matrix_3_7_s psi_apriori_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица y_k|k-1
+	 */
+	pgcs_matrix_3_1_s y_apriori_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица Pyy
+	 */
+	pgcs_matrix_3x3_s Pyy_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица для хранения обратной от Pyy матрицы
+	 */
+	pgcs_matrix_3x3_s PyyInv_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Матрица Pyy
+	 */
+	pgcs_matrix_3x3_s Pxy_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица коэффициентов усиления фильтра
+	 */
+	pgcs_matrix_3x3_s K_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Матрица для хранения обратной от матрицы коэффициентов усиления
+	 */
+	pgcs_matrix_3x3_s K_Transpose_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief  Матрица для хранения промежуточных данных (используется на шаге Calculate covariance of predicted output)
+	 */
+	pgcs_matrix_1_3_s psi_priory_MINUS_y_priory_TRANSPOSE;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Вектор-столбец измерений, полученных от GNSS модуля
+	 */
+	pgcs_matrix_3_1_s y_posteriori_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Вектор-столбец "инновации"
+	 */
+	pgcs_matrix_3_1_s innovation_s;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief Структура для инициализации указателей на матрицы (дли
+	 *        использования библиотеки "UKFSIF")
+	 */
+	ukfsif_all_data_s 		ukfsifMatrixPointers_s;
+} pgcs_ukf_data_s;
+
+typedef struct
+{
 	pgcs_kin_data_s kinData_s;
+	pgcs_ukf_data_s ukfData_s;
 
 } pgcs_data_s;
 
@@ -326,22 +493,16 @@ typedef struct
 
 /*#### |Begin| --> Секция - "Прототипы глобальных функций" ###################*/
 
-//#define __PGCS_UpdateDt(__pData_s__, __dt__) ((__pData_s__)->kinData_s.dt = (__dt__))
-
-/* @todo Подпиши что за флаги, за что они отвечают */
+/*------------------------------------------------------------------------*//**
+* @brief Флаги наличия новых данных по скорости
+*/
 #define __PGCS_SetFlagVelDataUpdate() 		(pData_s->kinData_s.isNewVel_flag 	= 1u)
 #define __PGCS_ReSetFlagVelDataUpdate() 	(pData_s->kinData_s.isNewVel_flag 	= 0u)
 #define __PGCS_IsFlagVelDataUpdateSet() 	(pData_s->kinData_s.isNewVel_flag 	== 1u)
 
-#define __PGCS_SetFlagDPosDataUpdate() 		(pData_s->kinData_s.isNewDPos_flag 	= 1u)
-#define __PGCS_ReSetFlagDPosDataUpdate() 	(pData_s->kinData_s.isNewDPos_flag 	= 0u)
-#define __PGCS_IsFlagDPosDataUpdateSet() 	(pData_s->kinData_s.isNewDPos_flag 	== 1u)
-
-#define __PGCS_SetFlagPosZDataUpdate() 		(pData_s->kinData_s.isNewPosZ_flag 	= 1u)
-#define __PGCS_ReSetFlagPosZDataUpdate() 	(pData_s->kinData_s.isNewPosZ_flag 	= 0u)
-#define __PGCS_IsFlagPosZDataUpdateSet() 	(pData_s->kinData_s.isNewPosZ_flag 	== 1u)
-
-/* @todo я этот флаг планировал использовать как маркер, сигналазирующий о поступлении данныъ от GNSS модуля */
+/*------------------------------------------------------------------------*//**
+* @brief Флаги наличия новых данных по начальной координате ДШВ
+*/
 #define __PGCS_SetFlagPosDataUpdate() 		(pData_s->kinData_s.isNewPos_flag 	= 1u)
 #define __PGCS_ReSetFlagPosDataUpdate() 	(pData_s->kinData_s.isNewPos_flag 	= 0u)
 #define __PGCS_IsFlagPosDataUpdateSet() 	(pData_s->kinData_s.isNewPos_flag 	== 1u)
@@ -373,6 +534,35 @@ PGCS_CopyLatLonAltInWorldFrame(
 
 
 /*#### |Begin| --> Секция - "Определение макросов" ###########################*/
+#if defined (__UKFMO_CHEKING_ENABLE__)
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      22-авг-2019
+ *
+ * @brief    Макрос проверяет валидность структуры матрицы, если матрица
+ *           не валидна, то макрос зацикливает программу
+ *
+ * @param[in]	x: 	Указатель на структуру матрицы
+ *
+ * @return   None
+ */
+__PGCS_ALWAYS_INLINE ukfmo_matrix_s*
+__PGCS_CheckMatrixStructValidation(
+	ukfmo_matrix_s *pData)
+{
+	/* Вызов макроса для проверки параметров структуры */
+	__UKFMO_CheckMatrixStructValidationGeneric(
+		pData,
+		(PGCS_LEN_SIGMA_COL),
+		(PGCS_LEN_SIGMA_COL));
+
+	return (pData);
+}
+#else
+
+#define __PGCS_CheckMatrixStructValidation(x) 	(x)
+#endif
 /*#### |End  | <-- Секция - "Определение макросов" ###########################*/
 
 
