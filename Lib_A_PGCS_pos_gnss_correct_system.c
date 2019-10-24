@@ -26,16 +26,6 @@
 
 /*#### |Begin| --> Секция - "Описание глобальных функций" ####################*/
 
-/* @todo Эти определения перенеси в .h и сделай так, чтобы компилятор "ругался", 
- * если явно не выбран метод проекции */
-#ifndef __PGCS_BACKPROJECTMETHOD
-	#define __PGCS_BackProjectCoordSys(x)	PGCS_FlatToLLA(x)
-#elif (__PGCS_BACKPROJECTMETHOD == 1)
-	#define __PGCS_BackProjectCoordSys(x)	PGCS_FlatToLLA(x)
-#elif (__PGCS_BACKPROJECTMETHOD == 2)
-	#define __PGCS_BackProjectCoordSys(x)	PGCS_ECEFToLLAAdd(x)
-#endif
-
 void
 PGCS_StructInit(
 	pgcs_data_init_s *pInit_s)

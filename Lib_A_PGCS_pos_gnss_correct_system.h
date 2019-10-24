@@ -34,6 +34,17 @@
 	#include "macros_definitions.h"
 #endif
 
+/*==== |Begin| --> Секция определения метода обратной проекции ===============*/
+#ifndef __PGCS_BACKPROJECTMETHOD
+	#error "__PGCS_BACKPROJECTMETHOD isn't set. You must choose one of the backprojection methods and set it in macro list."
+#elif (__PGCS_BACKPROJECTMETHOD == 1)
+	#define __PGCS_BackProjectCoordSys(x)	PGCS_FlatToLLA(x)
+#elif (__PGCS_BACKPROJECTMETHOD == 2)
+	#define __PGCS_BackProjectCoordSys(x)	PGCS_ECEFToLLAAdd(x)
+#endif
+
+/*==== |End  | <-- Секция определения метода обратной проекции ===============*/
+
 /*==== |Begin| --> Секция определения типа числа с плавающей точкой ==========*/
 #if !defined (__PGCS_FPT__)
 	#error "Please, set __PGCS_FPT__ to float or double in macros list"
