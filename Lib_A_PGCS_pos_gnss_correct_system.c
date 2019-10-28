@@ -158,15 +158,23 @@ PGCS_ECEFToLLAAdd(
 
 
 void
-PGCS_FlatToLLA(
-	pgcs_data_s *pData_s)
+PGCS_FlatToLLA2(
+	pgcs_data_s *pData_s,
+	__PGCS_FPT__ *pDPos)
 {
 	__PGCS_FPT__ re_c = PGCS_RE * __PGCS_cos((PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
 
-	pData_s->kinData_s.lla_pos[0] = *pData_s->kinData_s.flat_dpos[1] * ((__PGCS_FPT__) 180.0) / (PGCS_PI * PGCS_RE) + pData_s->kinData_s.lla_pos_zero[0];
-	pData_s->kinData_s.lla_pos[1] = *pData_s->kinData_s.flat_dpos[0] * ((__PGCS_FPT__) 180.0) / (PGCS_PI * re_c) + pData_s->kinData_s.lla_pos_zero[1];
-	pData_s->kinData_s.lla_pos[2] = *pData_s->kinData_s.flat_dpos[2] + pData_s->kinData_s.lla_pos_zero[2];
+	pData_s->kinData_s.lla_pos[0] = *(pDPos + 1) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * PGCS_RE) + pData_s->kinData_s.lla_pos_zero[0];
+	pData_s->kinData_s.lla_pos[1] = *(pDPos + 0) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * re_c) + pData_s->kinData_s.lla_pos_zero[1];
+	pData_s->kinData_s.lla_pos[2] = *(pDPos + 2) + pData_s->kinData_s.lla_pos_zero[2];
 
+}
+
+void
+PGCS_FlatToLLA1(
+	pgcs_data_s *pData_s)
+{
+	PGCS_FlatToLLA2(pData_s, pData_s->kinData_s.flat_dpos);
 }
 
 void 
@@ -193,7 +201,7 @@ PGCS_UpdateDt(
 }
 
 void __PGCS_FNC_ONCE_MEMORY_LOCATION
-VGSS_Init_MatrixStructs(
+PGSS_Init_MatrixStructs(
 	pgcs_data_s 		*pData_s,
 	ukfsif_all_data_s 	*pMatrixPointers_s)
 {

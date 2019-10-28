@@ -39,9 +39,11 @@
 #ifndef __PGCS_BACKPROJECTMETHOD
 	#error "__PGCS_BACKPROJECTMETHOD isn't set. You must choose one of the backprojection methods and set it in macro list."
 #elif (__PGCS_BACKPROJECTMETHOD == 1)
-	#define __PGCS_BackProjectCoordSys(x)	PGCS_FlatToLLA(x)
+	#define __PGCS_BackProjectCoordSys2(x, y)	PGCS_FlatToLLA2(x, y)
+	#define __PGCS_BackProjectCoordSys1(x)		PGCS_FlatToLLA1(x)
 #elif (__PGCS_BACKPROJECTMETHOD == 2)
-	#define __PGCS_BackProjectCoordSys(x)	PGCS_ECEFToLLAAdd(x)
+	#define __PGCS_BackProjectCoordSys2(x, y)	PGCS_ECEFToLLAAdd2(x, y)
+	#define __PGCS_BackProjectCoordSys1(x)		PGCS_ECEFToLLAAdd1(x)
 #endif
 
 /*==== |End  | <-- Секция определения метода обратной проекции ===============*/
