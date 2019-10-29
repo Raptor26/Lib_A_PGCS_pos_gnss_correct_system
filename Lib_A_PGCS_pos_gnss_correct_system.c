@@ -21,6 +21,34 @@
 
 
 /*#### |Begin| --> Секция - "Прототипы локальных функций" ####################*/
+void
+PGCS_ECEFToLLAAdd2(
+	pgcs_data_s *pData_s,
+	__PGCS_FPT__ *pDPos);
+
+void
+PGCS_FlatToLLA2(
+	pgcs_data_s *pData_s,
+	__PGCS_FPT__ *pDPos);
+
+void
+PGCS_FlatToLLA1(
+	pgcs_data_s *pData_s);
+
+void 
+PGCS_IntegrateFlat(
+	pgcs_data_s *pData_s);
+
+void
+PGCS_UpdateDt(
+	pgcs_data_s *pData_s,
+	__PGCS_FPT__ dt);
+
+void __PGCS_FNC_ONCE_MEMORY_LOCATION
+PGSS_Init_MatrixStructs(
+	pgcs_data_s 		*pData_s,
+	ukfsif_all_data_s 	*pMatrixPointers_s);
+
 /*#### |End  | <-- Секция - "Прототипы локальных функций" ####################*/
 
 
@@ -47,11 +75,24 @@ PGCS_StructInit(
 	}
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      03-сен-2019
+ *
+ * @brief     Функция выполняет инициализацию всех параметров, необходимых
+ *            для работы UKF, операций интегрирования
+ *
+ * @param[in, out] 	*pData_s:	Указатель на структуру данных со всеми параметрами
+ * 
+ * @param[in]   	*pInit_s:   Указатель на структуру с параметрами инициализации
+ *
+ */
 void
 PGCS_Init_All(
 	pgcs_data_s *pData_s,
 	pgcs_data_init_s *pInit_s)
 {
+	/* Инициализация интегральных структур */
 	ninteg_trapz_init_s trapzInit_s;
 	NINTEG_Trapz_StructInit(&trapzInit_s);
 	trapzInit_s.accumulate_flag = NINTEG_DISABLE;
@@ -67,8 +108,79 @@ PGCS_Init_All(
 		while (trapzInitStatus_e != NINTEG_SUCCESS);
 	}
 
+	/* Инициализация всех структур матриц */
+	PGSS_Init_MatrixStructs(
+		pData_s,
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s);
+
+	/* Вычисление корня квадратного из (lambda + len) и запись в поле структуры */
+	pData_s->ukfData_s.scalar_s.sqrtLamLen =
+		__PGCS_sqrt(
+			UKFSIF_GetLambda(
+				PGCS_LEN_STATE,
+				pInit_s->scalParams_s.alpha,
+				pInit_s->scalParams_s.kappa) + PGCS_LEN_STATE);
+
+	/* Установка периода интегрирования */
+	#if defined (__UKFMO_CHEKING_ENABLE__)
+	if (pInit_s->dt == (__PGCS_FPT__)0.0)
+	{
+		__UKFMO_ALL_INTERRUPTS_DIS();
+		while (1);
+	}
+	#endif
+
+	/* Обновление периода интегрирования */
+	__PGCS_UpdateDt(pData_s, pInit_s->dt);
+
+	/* Инициализация вектора muMean */
+	UKFSIF_InitWeightVectorMean(
+		&pInit_s->scalParams_s,
+		pData_s->ukfData_s.muMean_s.memForMatrix[0u],
+		PGCS_LEN_STATE);
+
+	/* Инициализация вектора muCov */
+	UKFSIF_InitWeightVectorCov(
+		&pInit_s->scalParams_s,
+		pData_s->ukfData_s.muCovar_s.memForMatrix[0u],
+		PGCS_LEN_STATE);
+
+	/* Заполнение матрицы Q */
+	PGCS_Init_NoiseMatrix(
+		&pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s,
+		pInit_s->Q_mat_a);
+
+	/* Заполнение матрицы R */
+	PGCS_Init_NoiseMatrix(
+		&pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s,
+		pInit_s->R_mat_a);
+
+	/* Заполнение матрицы P */
+	UKFMO_MatrixIdentity(
+		&pData_s->ukfData_s.P_predict_s.mat_s);
+
+	/* Инициализация вектора пространства состояний */
+	for (size_t i = 0u; i < __UKFMO_GetRowNumb(&pData_s->ukfData_s.x_posteriori_s.mat_s); i++)
+	{
+		/* Получить индекс ячейки массива */
+		size_t idx =
+			__UKFMO_GetIndexInOneFromTwoDim(&pData_s->ukfData_s.x_posteriori_s.mat_s, i, 0u);
+		pData_s->ukfData_s.x_posteriori_s.mat_s.pData[idx]
+			= pInit_s->state_a[i];
+	}
+
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция производит обновление позиции путём выполнения операций
+ * 			  интегрирования, а также всех этапов работы UKF
+ *
+ * @param[in, out]    *pData_s:    Указатель на структуру данных, содержащую
+ * 								   данные кинематики и UKF
+ */
 void
 PGCS_UpdatePosState(
 	pgcs_data_s *pData_s)
@@ -81,12 +193,23 @@ PGCS_UpdatePosState(
 
 	/* Выполнение проекции приращения местоположения из нормальной Земной СК 
 	 * (модели плоской Земли) в приращение долготы/широты/высоты */
-	__PGCS_BackProjectCoordSys(pData_s);
+	__PGCS_BackProjectCoordSys1(pData_s);
 
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция производит запись вектора скорости во внутреннюю структуру
+ *
+ * @param[in, out]    *pData_s:    Указатель на структуру данных, содержащую
+ * 								   данные кинематики
+ * 								   
+ * @param[in]    	  *pVel:       Указатель на массив (вектор) скорости по трём осям
+ */
 void
-PGCS_CopyVelInWorldFrame(
+PGCS_SetCurrentFlatVelocity(
 	pgcs_data_s *pData_s,
 	__PGCS_FPT__ *pVel)
 {
@@ -99,29 +222,79 @@ PGCS_CopyVelInWorldFrame(
 	}
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция производит запись координаты, полученной с GNSS,
+ * 		      во внутреннюю структуру
+ *
+ * @param[in, out]    *pData_s:    		Указатель на структуру данных, содержащую
+ * 								   		данные кинематики
+ * 								   
+ * @param[in]    	  *pLatLonAlt:      Указатель на массив (вектор) координаты ДШВ
+ */
 void
-PGCS_CopyLatLonAltInWorldFrame(
+PGCS_SetCurrentLLAPos(
 	pgcs_data_s *pData_s,
 	__PGCS_FPT__ *pLatLonAlt)
 {
 	if !(__PGCS_IsFlagPosDataUpdateSet())
 	{
+		pData_s->kinData_s.lla_pos_gnss[0] = *pLatLonAlt++;
+		pData_s->kinData_s.lla_pos_gnss[1] = *pLatLonAlt++;
+		pData_s->kinData_s.lla_pos_gnss[2] = *pLatLonAlt;
+		__PGCS_SetFlagPosDataUpdate();
+	}
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция производит запись опорной нулевой координаты, полученной
+ * 			  с GNSS, во внутреннюю структуру. Используется для корректной работы
+ * 			  функций обратной проекции.
+ *
+ * @param[in, out]    *pData_s:    		Указатель на структуру данных, содержащую
+ * 								   		данные кинематики
+ * 								   
+ * @param[in]    	  *pLatLonAlt:      Указатель на массив (вектор) нулевой
+ * 										координаты ДШВ
+ */
+void
+PGCS_SetZeroLLAPos(
+  pgcs_data_s *pData_s,
+  __PGCS_FPT__ *pLatLonAlt)
+{
 		pData_s->kinData_s.lla_pos_zero[0] = *pLatLonAlt++;
 		pData_s->kinData_s.lla_pos_zero[1] = *pLatLonAlt++;
 		pData_s->kinData_s.lla_pos_zero[2] = *pLatLonAlt;
-		__PGCS_SetFlagPosDataUpdate();
-	}
 }
 /*#### |End  | <-- Секция - "Описание глобальных функций" ####################*/
 
 
 /*#### |Begin| --> Секция - "Описание локальных функций" #####################*/
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция обратного проецирования координат из прямоугольной геоцентрической
+ * 			  системы (ECEF) во всемирную систему (WGS84)
+ *
+ * @param[in,out]	*pData_s:    Указатель на структуру данных, в которой содержатся
+ * 								 кинетические данные
+ * 								 
+ * @param[in]    	*pDPos:      Указатель на массив (вектор) координат приращения позиции
+ * 								 в проекционной системе
+ */
 void
-PGCS_ECEFToLLAAdd(
-	pgcs_data_s *pData_s)
+PGCS_ECEFToLLAAdd2(
+	pgcs_data_s *pData_s,
+	__PGCS_FPT__ *pDPos)
 {
-	//ToDo
+	/*					ToDo						*/
 	__PGCS_FPT__ f = 1. / 298.257223563;		eciprocal flattening
 	__PGCS_FPT__ b = PGCS_RE * (1. - f);		semi-minor axis
 	__PGCS_FPT__ b2 = b * b;
@@ -151,12 +324,38 @@ PGCS_ECEFToLLAAdd(
 	pData_s->kinData_s.lla_pos[0] = __PGCS_atan((pData_s->kinData_s.flat_dpos[2] + ep2 * zo) / r) + pData_s->kinData_s.lla_pos_zero[0];
 	pData_s->kinData_s.lla_pos[1] = __PGCS_atan2(pData_s->kinData_s.flat_dpos[1], pData_s->kinData_s.flat_dpos[0]) + pData_s->kinData_s.lla_pos_zero[1];
 	pData_s->kinData_s.lla_pos[2] = U * (1 - b2 / (PGCS_RE * V)) + pData_s->kinData_s.lla_pos_zero[2];
-
-
-
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция обратного проецирования координат из прямоугольной геоцентрической
+ * 			  системы (ECEF) во всемирную систему (WGS84)
+ *
+ * @param[in,out]   	*pData_s:    Указатель на структуру данных, в которой содержатся
+ * 								 	 кинетические данные
+ */
+void
+PGCS_ECEFToLLAAdd1(
+	pgcs_data_s *pData_s)
+{
+	PGCS_ECEFToLLAAdd2(pData_s, pData_s->kinData_s.flat_dpos);
+}
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция обратного проецирования координат из плоскоземельной
+ * 			  системы (ECEF) во всемирную систему (WGS84)
+ *
+ * @param[in,out]		*pData_s:    Указатель на структуру данных, в которой содержатся
+ * 								 	 кинетические данные
+ * 								 
+ * @param[in]			*pDPos:      Указатель на массив (вектор) координат приращения позиции
+ * 								 	 в проекционной системе
+ */
 void
 PGCS_FlatToLLA2(
 	pgcs_data_s *pData_s,
@@ -167,9 +366,18 @@ PGCS_FlatToLLA2(
 	pData_s->kinData_s.lla_pos[0] = *(pDPos + 1) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * PGCS_RE) + pData_s->kinData_s.lla_pos_zero[0];
 	pData_s->kinData_s.lla_pos[1] = *(pDPos + 0) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * re_c) + pData_s->kinData_s.lla_pos_zero[1];
 	pData_s->kinData_s.lla_pos[2] = *(pDPos + 2) + pData_s->kinData_s.lla_pos_zero[2];
-
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция обратного проецирования координат из плоскоземельной
+ * 			  системы (ECEF) во всемирную систему (WGS84)
+ *
+ * @param[in,out]   	*pData_s:    Указатель на структуру данных, в которой содержатся
+ * 								     кинетические данные
+ */
 void
 PGCS_FlatToLLA1(
 	pgcs_data_s *pData_s)
@@ -177,6 +385,18 @@ PGCS_FlatToLLA1(
 	PGCS_FlatToLLA2(pData_s, pData_s->kinData_s.flat_dpos);
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief     Функция, производящая интегрирование вектора скоростей и заполняющая
+ * 			  вектор приращения координат в проекционной системе последним хранимым
+ * 			  значением
+ * 			  
+ *
+ * @param[in,out]		*pData_s:    Указатель на структуру данных, в которой содержатся
+ * 						    	 	 кинетические данные
+ */
 void 
 PGCS_IntegrateFlat(
 	pgcs_data_s *pData_s)
@@ -190,6 +410,18 @@ PGCS_IntegrateFlat(
 		pData_s->kinData_s.flat_dpos[2] = NINTEG_TrapzGetLastVal(pData_s->kinData_s.flat_pos_integ[2]);
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      29-Oct-2019
+ *
+ * @brief    Функция производит обновление периода интегрирования в структурах,
+ * 			 используемых для операций интегрирования
+ *
+ * @param[in,out]		*pData_s:    Указатель на структуру данных, в которой содержатся
+ * 						   	  	     кинетические данные
+ * 						   	  	   
+ * @param[in]				  dt:    Новый период интегрирования
+ */
 void
 PGCS_UpdateDt(
 	pgcs_data_s *pData_s,
@@ -200,6 +432,20 @@ PGCS_UpdateDt(
 	pData_s->kinData_s.flat_pos_integ[2].dT = dt;
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @author    Konstantin Ganshin
+ * @date      29-сен-2019
+ *
+ * @brief    Инициализация указателей на области памяти, в которых
+ *           содержатся матрицы
+ *
+ * @param[out] 	*pData_s:			Указатель на структуру данных, в которой содержаться
+ * 									параметры, необходимые для работы UKF
+ * 									
+ * @param[in]  	*pMatrixPointers_s: Указатель на структуру данных, содержащую 
+ * 									указатели на области памяти матричных структур
+ */
 void __PGCS_FNC_ONCE_MEMORY_LOCATION
 PGSS_Init_MatrixStructs(
 	pgcs_data_s 		*pData_s,
@@ -564,6 +810,28 @@ PGSS_Init_MatrixStructs(
 		&initMatrixPointers_s,
 		(uint16_t) PGCS_LEN_STATE);
 
+}
+
+static void __PGCS_FNC_ONCE_MEMORY_LOCATION
+PGCS_Init_NoiseMatrix(
+	ukfmo_matrix_s 	*pNoiseMat,
+	__PGCS_FPT__ 	*pNoiseMatDiag)
+{
+	/* Сброс матрицы шумов в нуль */
+	UKFMO_MatrixZeros(pNoiseMat);
+
+	size_t i;
+	for (i = 0u; i < pNoiseMat->numCols; i++)
+	{
+		if (*pNoiseMatDiag == ((__PGCS_FPT__) 0.0))
+		{
+			/* Если попоали сюда, значит диагональ матрицы шума не
+			 * инициализирована */
+			while (1);
+		}
+		pNoiseMat->pData[__UKFMO_GetIndexInOneFromTwoDim(pNoiseMat, i, i)] =
+			*pNoiseMatDiag++;
+	}
 }
 
 /*#### |End  | <-- Секция - "Описание локальных функций" #####################*/

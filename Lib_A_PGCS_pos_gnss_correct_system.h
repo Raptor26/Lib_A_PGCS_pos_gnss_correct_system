@@ -263,36 +263,47 @@ typedef struct
 	__PGCS_FPT__ sqrtLamLen;
 } pgcs_scalar_params_s;
 
+
+/*-------------------------------------------------------------------------*//**
+ * @brief  Структура для хранения кинетических данных
+ */
 typedef struct
 {
 	/*------------------------------------------------------------------------*//**
 	 * @brief 	Вектор скорости в проекционной системе
 	 */
-	__PGCS_FPT__ flat_vel[3u];
-	size_t 			isNewVel_flag;
+	__PGCS_FPT__ 	flat_vel[3u];
 
 	/*------------------------------------------------------------------------*//**
 	 * @brief 	Вектор приращения позиции в проекционной системе
 	 */
-	__PGCS_FPT__ flat_dpos[3u];
-	size_t 			isNewDPos_flag;
+	__PGCS_FPT__ 	flat_dpos[3u];
 
 	/*------------------------------------------------------------------------*//**
 	 * @brief 	Вектор начальной позиции в ДШВ-системе (Z means Zero)
 	 */
-	__PGCS_FPT__ lla_pos_zero[3u];
-	size_t 			isNewPosZ_flag;
+	__PGCS_FPT__ 	lla_pos_zero[3u];
 
 	/*------------------------------------------------------------------------*//**
 	 * @brief 	Вектор текущей позиции в ДШВ-системе
 	 */
-	__PGCS_FPT__ lla_pos[3u];
-	size_t 			isNewPos_flag;
+	__PGCS_FPT__ 	lla_pos[3u];
 
-	ninteg_trapz_s flat_pos_integ[3u];
+	/*------------------------------------------------------------------------*//**
+	 * @brief 	Вектор текущей позиции в ДШВ-системе, полученной с GNSS
+	 */
+	__PGCS_FPT__ 	lla_pos_gnss[3u];
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief 	Структура с интегралом координат в проекционной системе
+	 */
+	ninteg_trapz_s 	flat_pos_integ[3u];
 
 } pgcs_kin_data_s;
 
+/*-------------------------------------------------------------------------*//**
+ * @brief  Структура для хранения данных, необходимых для UKF
+ */
 typedef struct
 {
 	/*------------------------------------------------------------------------*//**
@@ -449,8 +460,8 @@ typedef struct
 
 typedef struct
 {
-	pgcs_kin_data_s kinData_s;
-	pgcs_ukf_data_s ukfData_s;
+	pgcs_kin_data_s 		kinData_s;
+	pgcs_ukf_data_s 		ukfData_s;
 
 } pgcs_data_s;
 
@@ -496,14 +507,14 @@ typedef struct
 /*#### |Begin| --> Секция - "Прототипы глобальных функций" ###################*/
 
 /*------------------------------------------------------------------------*//**
-* @brief Флаги наличия новых данных по скорости
+* @brief Флаги наличия новых данных о скорости
 */
 #define __PGCS_SetFlagVelDataUpdate() 		(pData_s->kinData_s.isNewVel_flag 	= 1u)
 #define __PGCS_ReSetFlagVelDataUpdate() 	(pData_s->kinData_s.isNewVel_flag 	= 0u)
 #define __PGCS_IsFlagVelDataUpdateSet() 	(pData_s->kinData_s.isNewVel_flag 	== 1u)
 
 /*------------------------------------------------------------------------*//**
-* @brief Флаги наличия новых данных по начальной координате ДШВ
+* @brief Флаги наличия новых данных о координате ДШВ, полученных с GNSS
 */
 #define __PGCS_SetFlagPosDataUpdate() 		(pData_s->kinData_s.isNewPos_flag 	= 1u)
 #define __PGCS_ReSetFlagPosDataUpdate() 	(pData_s->kinData_s.isNewPos_flag 	= 0u)
@@ -524,12 +535,17 @@ PGCS_UpdatePosState(
   pgcs_data_s *pData_s);
 
 extern void
-PGCS_CopyVelInWorldFrame(
+PGCS_SetCurrentFlatVelocity(
   pgcs_data_s *pData_s,
   __PGCS_FPT__ *pVel);
 
 extern void
-PGCS_CopyLatLonAltInWorldFrame(
+PGCS_SetCurrentLLAPos(
+  pgcs_data_s *pData_s,
+  __PGCS_FPT__ *pLatLonAlt);
+
+extern void
+PGCS_SetZeroLLAPos(
   pgcs_data_s *pData_s,
   __PGCS_FPT__ *pLatLonAlt);
 /*#### |End  | <-- Секция - "Прототипы глобальных функций" ###################*/
