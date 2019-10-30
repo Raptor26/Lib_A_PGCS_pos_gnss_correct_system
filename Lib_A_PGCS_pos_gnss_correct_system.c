@@ -271,6 +271,29 @@ PGCS_SetZeroLLAPos(
 		pData_s->kinData_s.lla_pos_zero[1] = *pLatLonAlt++;
 		pData_s->kinData_s.lla_pos_zero[2] = *pLatLonAlt;
 }
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      30-Oct-2019
+ *
+ * @brief     Функция осуществляет вывод результирующей координаты ДШВ, полученной
+ * 		 	  в результате работы интегрирования и UKF
+ *
+ * @param[in]     	*pData_s:       Указатель на структуру данных, содержащую
+ * 								  	данные кинематики
+ * 								  	
+ * @param[out]    	*pLatLonAlt:    Указатель на массив (вектор) нулевой
+ * 									координаты ДШВ
+ */
+void
+PGCS_GetProcessedLLAPos(
+  pgcs_data_s *pData_s,
+  __PGCS_FPT__ *pLatLonAlt)
+{
+	*pLatLonAlt++ = pData_s->kinData_s.lla_pos[0];
+	*pLatLonAlt++ = pData_s->kinData_s.lla_pos[1];
+	*pLatLonAlt	  = pData_s->kinData_s.lla_pos[2];
+}
 /*#### |End  | <-- Секция - "Описание глобальных функций" ####################*/
 
 

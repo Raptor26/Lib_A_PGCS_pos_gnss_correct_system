@@ -548,6 +548,11 @@ extern void
 PGCS_SetZeroLLAPos(
   pgcs_data_s *pData_s,
   __PGCS_FPT__ *pLatLonAlt);
+
+extern void
+PGCS_GetProcessedLLAPos(
+  pgcs_data_s *pData_s,
+  __PGCS_FPT__ *pLatLonAlt);
 /*#### |End  | <-- Секция - "Прототипы глобальных функций" ###################*/
 
 
