@@ -27,6 +27,10 @@ PGCS_ECEFToLLAAdd2(
     __PGCS_FPT__ *pDPos);
 
 void
+PGCS_ECEFToLLAAdd1(
+    pgcs_data_s *pData_s);
+
+void
 PGCS_FlatToLLA2(
     pgcs_data_s *pData_s,
     __PGCS_FPT__ *pDPos);
@@ -482,7 +486,7 @@ PGCS_ECEFToLLAAdd2(
     pgcs_data_s *pData_s,
     __PGCS_FPT__ *pDPos)
 {
-	/*					ToDo						*/
+	/*					Should be checked						*/
 	__PGCS_FPT__ f = 1. / 298.257223563;		eciprocal flattening
 	__PGCS_FPT__ b = PGCS_RE * (1. - f);		semi - minor axis
 	__PGCS_FPT__ b2 = b * b;
@@ -492,8 +496,8 @@ PGCS_ECEFToLLAAdd2(
 	__PGCS_FPT__ E2 = PGCS_RE * PGCS_RE - b2;
 
 
-	__PGCS_FPT__ z2 = pData_s->kinData_s.flat_dpos[2] * pData_s->kinData_s.flat_dpos[2];
-	__PGCS_FPT__ r2 = pData_s->kinData_s.flat_dpos[0] * pData_s->kinData_s.flat_dpos[0] + pData_s->kinData_s.flat_dpos[1] * pData_s->kinData_s.flat_dpos[1];
+	__PGCS_FPT__ z2 = (*(pDPos + 2)) * (*(pDPos + 2));
+	__PGCS_FPT__ r2 = (*(pDPos + 0)) * (*(pDPos + 0)) + (*(pDPos + 1)) * (*(pDPos + 1));
 	__PGCS_FPT__ r = __PGCS_sqrt(r2);
 	__PGCS_FPT__ F = 54.*b2 * z2;
 	__PGCS_FPT__ G = r2 + (1 - e2) * z2 - e2 * E2;
@@ -507,10 +511,10 @@ PGCS_ECEFToLLAAdd2(
 	__PGCS_FPT__ tmp = (r - e2 * ro) * (r - e2 * ro);
 	__PGCS_FPT__ U = __PGCS_sqrt(tmp + z2);
 	__PGCS_FPT__ V = __PGCS_sqrt(tmp + (1 - e2) * z2);
-	__PGCS_FPT__ zo = (b2 * pData_s->kinData_s.flat_dpos[2]) / (PGCS_RE * V);
+	__PGCS_FPT__ zo = (b2 * (*(pDPos + 2))) / (PGCS_RE * V);
 
-	pData_s->kinData_s.lla_pos[0] = __PGCS_atan((pData_s->kinData_s.flat_dpos[2] + ep2 * zo) / r) + pData_s->kinData_s.lla_pos_zero[0];
-	pData_s->kinData_s.lla_pos[1] = __PGCS_atan2(pData_s->kinData_s.flat_dpos[1], pData_s->kinData_s.flat_dpos[0]) + pData_s->kinData_s.lla_pos_zero[1];
+	pData_s->kinData_s.lla_pos[0] = __PGCS_atan(((*(pDPos + 2)) + ep2 * zo) / r) + pData_s->kinData_s.lla_pos_zero[0];
+	pData_s->kinData_s.lla_pos[1] = __PGCS_atan2((*(pDPos + 1)), (*(pDPos + 0))) + pData_s->kinData_s.lla_pos_zero[1];
 	pData_s->kinData_s.lla_pos[2] = U * (1 - b2 / (PGCS_RE * V)) + pData_s->kinData_s.lla_pos_zero[2];
 }
 
@@ -549,7 +553,7 @@ PGCS_FlatToLLA2(
     pgcs_data_s *pData_s,
     __PGCS_FPT__ *pDPos)
 {
-	__PGCS_FPT__ re_c = PGCS_RE * __PGCS_cos((PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
+	__PGCS_FPT__ re_c = PGCS_RE * __PGCS_cos(PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
 
 	pData_s->kinData_s.lla_pos[0] = *(pDPos + 1) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * PGCS_RE) + pData_s->kinData_s.lla_pos_zero[0];
 	pData_s->kinData_s.lla_pos[1] = *(pDPos + 0) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * re_c) + pData_s->kinData_s.lla_pos_zero[1];
