@@ -32,109 +32,109 @@
 
 /*#### |Begin| --> Секция - "Определение констант" ###########################*/
 #ifdef(__PGCS_EXTERN_MODE_ENABLE__)
-	#include "macros_definitions.h"
+#include "macros_definitions.h"
 #endif
 
 /*==== |Begin| --> Секция определения метода обратной проекции ===============*/
 #ifndef __PGCS_BACKPROJECTMETHOD
-	#error "__PGCS_BACKPROJECTMETHOD isn't set. You must choose one of the backprojection methods and set it in macro list."
+#error "__PGCS_BACKPROJECTMETHOD isn't set. You must choose one of the backprojection methods and set it in macro list."
 #elif (__PGCS_BACKPROJECTMETHOD == 1)
-	#define __PGCS_BackProjectCoordSys2(x, y)	PGCS_FlatToLLA2(x, y)
-	#define __PGCS_BackProjectCoordSys1(x)		PGCS_FlatToLLA1(x)
+#define __PGCS_BackProjectCoordSys2(x, y)	PGCS_FlatToLLA2(x, y)
+#define __PGCS_BackProjectCoordSys1(x)		PGCS_FlatToLLA1(x)
 #elif (__PGCS_BACKPROJECTMETHOD == 2)
-	#define __PGCS_BackProjectCoordSys2(x, y)	PGCS_ECEFToLLAAdd2(x, y)
-	#define __PGCS_BackProjectCoordSys1(x)		PGCS_ECEFToLLAAdd1(x)
+#define __PGCS_BackProjectCoordSys2(x, y)	PGCS_ECEFToLLAAdd2(x, y)
+#define __PGCS_BackProjectCoordSys1(x)		PGCS_ECEFToLLAAdd1(x)
 #endif
 
 /*==== |End  | <-- Секция определения метода обратной проекции ===============*/
 
 /*==== |Begin| --> Секция определения типа числа с плавающей точкой ==========*/
 #ifndef (__PGCS_FPT__)
-	#error "Please, set __PGCS_FPT__ to float or double in macros list"
+#error "Please, set __PGCS_FPT__ to float or double in macros list"
 #endif
 
 #ifndef (__PGCS_FPT_SIZE__)
-	#error "Please, set __PGCS_FPT_SIZE__ to 4 (that means float) or 8 (that means double) in macros list"
+#error "Please, set __PGCS_FPT_SIZE__ to 4 (that means float) or 8 (that means double) in macros list"
 #endif
 
 #if     __PGCS_FPT_SIZE__ == 4
-	#define __PGCS_sqrt(x)		sqrtf(x)
-	#define __PGCS_pow(x, y)	powf(x, y)
-	#define __PGCS_atan(x)		atanf(x)
-	#define __PGCS_atan2(x, y)	atan2f(x, y)
-	#define __PGCS_cos(x)		cosf(x)
-	#define __PGCS_fabs(x)		fabsf(x)
+#define __PGCS_sqrt(x)		sqrtf(x)
+#define __PGCS_pow(x, y)	powf(x, y)
+#define __PGCS_atan(x)		atanf(x)
+#define __PGCS_atan2(x, y)	atan2f(x, y)
+#define __PGCS_cos(x)		cosf(x)
+#define __PGCS_fabs(x)		fabsf(x)
 
 #elif   __PGCS_FPT_SIZE__ == 8
-	#define __PGCS_sqrt(x)		sqrt(x)
-	#define __PGCS_pow(x)		pow(x)
-	#define __PGCS_atan(x)		atan(x)
-	#define __PGCS_atan2(x, y)	atan2(x, y)
-	#define __PGCS_cos(x)		cos(x)
-	#define __PGCS_fabs(x)		fabs(x)
+#define __PGCS_sqrt(x)		sqrt(x)
+#define __PGCS_pow(x)		pow(x)
+#define __PGCS_atan(x)		atan(x)
+#define __PGCS_atan2(x, y)	atan2(x, y)
+#define __PGCS_cos(x)		cos(x)
+#define __PGCS_fabs(x)		fabs(x)
 
 #else
-	#error "Your compiler uses a non-standard floating point size"
+#error "Your compiler uses a non-standard floating point size"
 #endif
 /*==== |End  | <-- Секция определения типа числа с плавающей точкой ==========*/
 
 /*==== |Begin| --> Секция - Макросы для встраиваемых функций =================*/
 #if defined (__GNUC__)
 
-	/* inline*/
-	#ifndef __PGCS_INLINE
-		#define __PGCS_INLINE 			inline
-	#endif
+/* inline*/
+#ifndef __PGCS_INLINE
+#define __PGCS_INLINE 			inline
+#endif
 
-	/* static inline */
-	#ifndef __PGCS_STATIC_INLINE
-		#define __PGCS_STATIC_INLINE	static inline
-	#endif
+/* static inline */
+#ifndef __PGCS_STATIC_INLINE
+#define __PGCS_STATIC_INLINE	static inline
+#endif
 
-	/* always inline */
-	#ifndef __PGCS_ALWAYS_INLINE
-		#define __PGCS_ALWAYS_INLINE    inline __attribute__((always_inline)) static
-	#endif
+/* always inline */
+#ifndef __PGCS_ALWAYS_INLINE
+#define __PGCS_ALWAYS_INLINE    inline __attribute__((always_inline)) static
+#endif
 
-	/* force inline */
-	#ifndef __PGCS_FORCE_INLINE
-		#define __PGCS_FORCE_INLINE 	inline __attribute__((always_inline))
-	#endif
+/* force inline */
+#ifndef __PGCS_FORCE_INLINE
+#define __PGCS_FORCE_INLINE 	inline __attribute__((always_inline))
+#endif
 
 #else
-	#define __PGCS_INLINE
-	#define __PGCS_STATIC_INLINE 		static
-	#define __PGCS_ALWAYS_INLINE
+#define __PGCS_INLINE
+#define __PGCS_STATIC_INLINE 		static
+#define __PGCS_ALWAYS_INLINE
 #endif
 /*==== |End  | <-- Секция - Макросы для встраиваемых функций =================*/
 
 /*==== |Begin| --> Секция - Расположение функций библиотеки в специальной
  *                          области памяти ===================================*/
 #if defined (__PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__)
-	#if defined (__GNUC__)
-		#define __PGCS_FNC_ONCE_MEMORY_LOCATION  __attribute__ ((section(__PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__)))
-	#else
-		#error "You defined the name of the memory area for the function location, but the type of your compiler is not supported by the library. You can delete the macro definition __PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__ or extend the macro definition __PGCS_FNC_ONCE_MEMORY_LOCATION for your compiler type"
-	#endif
+#if defined (__GNUC__)
+#define __PGCS_FNC_ONCE_MEMORY_LOCATION  __attribute__ ((section(__PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__)))
 #else
-	#define __PGCS_FNC_ONCE_MEMORY_LOCATION
+#error "You defined the name of the memory area for the function location, but the type of your compiler is not supported by the library. You can delete the macro definition __PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__ or extend the macro definition __PGCS_FNC_ONCE_MEMORY_LOCATION for your compiler type"
+#endif
+#else
+#define __PGCS_FNC_ONCE_MEMORY_LOCATION
 #endif
 
 #if defined (__PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__)
-	#if defined (__GNUC__)
-		#define __PGCS_FNC_LOOP_MEMORY_LOCATION  __attribute__ ((section(__PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__)))
-	#else
-		#error "You defined the name of the memory area for the function location, but the type of your compiler is not supported by the library. You can delete the macro definition __PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__ or extend the macro definition __PGCS_FNC_LOOP_MEMORY_LOCATION for your compiler type"
-	#endif
+#if defined (__GNUC__)
+#define __PGCS_FNC_LOOP_MEMORY_LOCATION  __attribute__ ((section(__PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__)))
 #else
-	#define __PGCS_FNC_LOOP_MEMORY_LOCATION
+#error "You defined the name of the memory area for the function location, but the type of your compiler is not supported by the library. You can delete the macro definition __PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__ or extend the macro definition __PGCS_FNC_LOOP_MEMORY_LOCATION for your compiler type"
+#endif
+#else
+#define __PGCS_FNC_LOOP_MEMORY_LOCATION
 #endif
 /*==== |End  | <-- Секция - Расположение функций библиотеки в специальной
  *                          области памяти ===================================*/
 
 /*==== |Begin| --> Секция - Выбор метода численного интегрирования ===========*/
 #if !defined (__PGCS_INTEG_METHOD__)
-	#error "Please, set __PGCS_INTEG_METHOD__ to one defined in Lib_A_NINTEG_numerical_integration in macros list"
+#error "Please, set __PGCS_INTEG_METHOD__ to one defined in Lib_A_NINTEG_numerical_integration in macros list"
 #endif
 /*==== |End  | <-- Секция - Выбор метода численного интегрирования ===========*/
 
@@ -164,7 +164,7 @@ typedef enum
 	PGCS_LEN_STATE,
 } pgcs_state_param_position_e;
 
-#define  pgcs_fnc_status_e 		ukfmo_fnc_status_e
+#define  pgcs_fnc_status_e 					ukfmo_fnc_status_e
 
 /*-------------------------------------------------------------------------*//**
  * @brief    Количество строк матрицы сигма-точек
@@ -265,7 +265,7 @@ typedef struct
 
 
 /*-------------------------------------------------------------------------*//**
- * @brief  Структура для хранения кинетических данных
+ * @brief  Структура для хранения кинематических данных
  */
 typedef struct
 {
@@ -458,6 +458,10 @@ typedef struct
 	ukfsif_all_data_s 		ukfsifMatrixPointers_s;
 } pgcs_ukf_data_s;
 
+/*-------------------------------------------------------------------------*//**
+ * @brief  Основная рабочая структура модуля PGCS, содержащая данные по
+ * кинематике и UKF
+ */
 typedef struct
 {
 	pgcs_kin_data_s 		kinData_s;
@@ -523,36 +527,36 @@ typedef struct
 
 extern void
 PGCS_StructInit(
-  pgcs_data_init_s *pInit_s);
+    pgcs_data_init_s *pInit_s);
 
 extern void
 PGCS_Init_All(
-  pgcs_data_s *pData_s,
-  pgcs_data_init_s *pInit_s);
+    pgcs_data_s *pData_s,
+    pgcs_data_init_s *pInit_s);
 
-extern void
+extern pgcs_fnc_status_e
 PGCS_UpdatePosState(
-  pgcs_data_s *pData_s);
+    pgcs_data_s *pData_s);
 
 extern void
 PGCS_SetCurrentFlatVelocity(
-  pgcs_data_s *pData_s,
-  __PGCS_FPT__ *pVel);
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pVel);
 
 extern void
 PGCS_SetCurrentLLAPos(
-  pgcs_data_s *pData_s,
-  __PGCS_FPT__ *pLatLonAlt);
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pLatLonAlt);
 
 extern void
 PGCS_SetZeroLLAPos(
-  pgcs_data_s *pData_s,
-  __PGCS_FPT__ *pLatLonAlt);
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pLatLonAlt);
 
 extern void
 PGCS_GetProcessedLLAPos(
-  pgcs_data_s *pData_s,
-  __PGCS_FPT__ *pLatLonAlt);
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pLatLonAlt);
 /*#### |End  | <-- Секция - "Прототипы глобальных функций" ###################*/
 
 
@@ -572,13 +576,13 @@ PGCS_GetProcessedLLAPos(
  */
 __PGCS_ALWAYS_INLINE ukfmo_matrix_s*
 __PGCS_CheckMatrixStructValidation(
-	ukfmo_matrix_s *pData)
+    ukfmo_matrix_s *pData)
 {
 	/* Вызов макроса для проверки параметров структуры */
 	__UKFMO_CheckMatrixStructValidationGeneric(
-		pData,
-		(PGCS_LEN_SIGMA_COL),
-		(PGCS_LEN_SIGMA_COL));
+	    pData,
+	    (PGCS_LEN_SIGMA_COL),
+	    (PGCS_LEN_SIGMA_COL));
 
 	return (pData);
 }

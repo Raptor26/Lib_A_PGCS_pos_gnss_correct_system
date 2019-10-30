@@ -23,31 +23,84 @@
 /*#### |Begin| --> Секция - "Прототипы локальных функций" ####################*/
 void
 PGCS_ECEFToLLAAdd2(
-	pgcs_data_s *pData_s,
-	__PGCS_FPT__ *pDPos);
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pDPos);
 
 void
 PGCS_FlatToLLA2(
-	pgcs_data_s *pData_s,
-	__PGCS_FPT__ *pDPos);
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pDPos);
 
 void
 PGCS_FlatToLLA1(
-	pgcs_data_s *pData_s);
+    pgcs_data_s *pData_s);
 
-void 
+void
 PGCS_IntegrateFlat(
-	pgcs_data_s *pData_s);
+    pgcs_data_s *pData_s);
 
 void
 PGCS_UpdateDt(
-	pgcs_data_s *pData_s,
-	__PGCS_FPT__ dt);
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ dt);
 
 void __PGCS_FNC_ONCE_MEMORY_LOCATION
 PGSS_Init_MatrixStructs(
-	pgcs_data_s 		*pData_s,
-	ukfsif_all_data_s 	*pMatrixPointers_s);
+    pgcs_data_s 		*pData_s,
+    ukfsif_all_data_s 	*pMatrixPointers_s);
+
+static void __PGCS_FNC_ONCE_MEMORY_LOCATION
+PGCS_Init_NoiseMatrix(
+    ukfmo_matrix_s 	*pNoiseMat,
+    __PGCS_FPT__ 	*pNoiseMatDiag);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step1_CalculateErrorCovarianceMatrixSquareRoot(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+VGCS_Step1_GenerateTheSigmaPoints(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step2_ProragateEachSigmaPointsThroughPrediction(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step2_CalculateMeanOfPredictedState(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step2_CalculateCovarianceOfPredictedState(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __VGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step3_PropagateEachSigmaPointThroughObservation(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step3_CalculateMeanOfPredictedOutput(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step3_CalculateCovarianceOfPredictedOutput(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step3_CalculateCrossCovarOfStateAndOut(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step4_CalcKalmanGain(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step4_UpdateStateEstimate(
+	pgcs_data_s *pData_s);
+
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step4_UpdateErrorCovariance(
+	pgcs_data_s *pData_s);
 
 /*#### |End  | <-- Секция - "Прототипы локальных функций" ####################*/
 
@@ -56,7 +109,7 @@ PGSS_Init_MatrixStructs(
 
 void
 PGCS_StructInit(
-	pgcs_data_init_s *pInit_s)
+    pgcs_data_init_s *pInit_s)
 {
 	/* Сброс скалярных параметров в значения по умолчанию */
 	pInit_s->scalParams_s.alpha 	= (__PGCS_FPT__) 1.0;
@@ -83,14 +136,14 @@ PGCS_StructInit(
  *            для работы UKF, операций интегрирования
  *
  * @param[in, out] 	*pData_s:	Указатель на структуру данных со всеми параметрами
- * 
+ *
  * @param[in]   	*pInit_s:   Указатель на структуру с параметрами инициализации
  *
  */
 void
 PGCS_Init_All(
-	pgcs_data_s *pData_s,
-	pgcs_data_init_s *pInit_s)
+    pgcs_data_s *pData_s,
+    pgcs_data_init_s *pInit_s)
 {
 	/* Инициализация интегральных структур */
 	ninteg_trapz_init_s trapzInit_s;
@@ -101,72 +154,72 @@ PGCS_Init_All(
 	for (uint8_t i = 0; i < PGCS_LEN_STATE; i++)
 	{
 		ninteg_fnc_status_e trapzInitStatus_e =
-			NINTEG_Trapz_Init(
-				&pData_s->kinData_s.flat_pos_integ[i],
-				&trapzInit_s);
+		    NINTEG_Trapz_Init(
+		        &pData_s->kinData_s.flat_pos_integ[i],
+		        &trapzInit_s);
 		/* Зависнуть если ошибка инициализации */
 		while (trapzInitStatus_e != NINTEG_SUCCESS);
 	}
 
 	/* Инициализация всех структур матриц */
 	PGSS_Init_MatrixStructs(
-		pData_s,
-		&pData_s->ukfData_s.ukfsifMatrixPointers_s);
+	    pData_s,
+	    &pData_s->ukfData_s.ukfsifMatrixPointers_s);
 
 	/* Вычисление корня квадратного из (lambda + len) и запись в поле структуры */
 	pData_s->ukfData_s.scalar_s.sqrtLamLen =
-		__PGCS_sqrt(
-			UKFSIF_GetLambda(
-				PGCS_LEN_STATE,
-				pInit_s->scalParams_s.alpha,
-				pInit_s->scalParams_s.kappa) + PGCS_LEN_STATE);
+	    __PGCS_sqrt(
+	        UKFSIF_GetLambda(
+	            PGCS_LEN_STATE,
+	            pInit_s->scalParams_s.alpha,
+	            pInit_s->scalParams_s.kappa) + PGCS_LEN_STATE);
 
 	/* Установка периода интегрирования */
-	#if defined (__UKFMO_CHEKING_ENABLE__)
+#if defined (__UKFMO_CHEKING_ENABLE__)
 	if (pInit_s->dt == (__PGCS_FPT__)0.0)
 	{
 		__UKFMO_ALL_INTERRUPTS_DIS();
 		while (1);
 	}
-	#endif
+#endif
 
 	/* Обновление периода интегрирования */
 	__PGCS_UpdateDt(pData_s, pInit_s->dt);
 
 	/* Инициализация вектора muMean */
 	UKFSIF_InitWeightVectorMean(
-		&pInit_s->scalParams_s,
-		pData_s->ukfData_s.muMean_s.memForMatrix[0u],
-		PGCS_LEN_STATE);
+	    &pInit_s->scalParams_s,
+	    pData_s->ukfData_s.muMean_s.memForMatrix[0u],
+	    PGCS_LEN_STATE);
 
 	/* Инициализация вектора muCov */
 	UKFSIF_InitWeightVectorCov(
-		&pInit_s->scalParams_s,
-		pData_s->ukfData_s.muCovar_s.memForMatrix[0u],
-		PGCS_LEN_STATE);
+	    &pInit_s->scalParams_s,
+	    pData_s->ukfData_s.muCovar_s.memForMatrix[0u],
+	    PGCS_LEN_STATE);
 
 	/* Заполнение матрицы Q */
 	PGCS_Init_NoiseMatrix(
-		&pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s,
-		pInit_s->Q_mat_a);
+	    &pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s,
+	    pInit_s->Q_mat_a);
 
 	/* Заполнение матрицы R */
 	PGCS_Init_NoiseMatrix(
-		&pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s,
-		pInit_s->R_mat_a);
+	    &pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s,
+	    pInit_s->R_mat_a);
 
 	/* Заполнение матрицы P */
 	UKFMO_MatrixIdentity(
-		&pData_s->ukfData_s.P_predict_s.mat_s);
+	    &pData_s->ukfData_s.P_predict_s.mat_s);
 
 	/* Инициализация вектора пространства состояний */
 	for (size_t i = 0u; i < __UKFMO_GetRowNumb(&pData_s->ukfData_s.x_posteriori_s.mat_s); i++)
 	{
 		/* Получить индекс ячейки массива */
 		size_t idx =
-			__UKFMO_GetIndexInOneFromTwoDim(&pData_s->ukfData_s.x_posteriori_s.mat_s, i, 0u);
+		    __UKFMO_GetIndexInOneFromTwoDim(&pData_s->ukfData_s.x_posteriori_s.mat_s, i, 0u);
 		pData_s->ukfData_s.x_posteriori_s.mat_s.pData[idx]
-			= pInit_s->state_a[i];
+		    = pInit_s->state_a[i];
 	}
 
 }
@@ -181,9 +234,9 @@ PGCS_Init_All(
  * @param[in, out]    *pData_s:    Указатель на структуру данных, содержащую
  * 								   данные кинематики и UKF
  */
-void
+pgcs_fnc_status_e
 PGCS_UpdatePosState(
-	pgcs_data_s *pData_s)
+    pgcs_data_s *pData_s)
 {
 	if __PGCS_IsFlagVelDataUpdateSet()
 	{
@@ -191,9 +244,121 @@ PGCS_UpdatePosState(
 		__PGCS_ReSetFlagVelDataUpdate();
 	}
 
-	/* Выполнение проекции приращения местоположения из нормальной Земной СК 
+	/* Выполнение проекции приращения местоположения из нормальной Земной СК
 	 * (модели плоской Земли) в приращение долготы/широты/высоты */
 	__PGCS_BackProjectCoordSys1(pData_s);
+
+	#if defined (__UKFMO_CHEKING_ENABLE__)
+	ukfmo_fnc_status_e matOperationStatus_e = UKFMO_OK;
+	#endif
+
+	/* Step 1 ################################################################ */
+	/* Были ли получены новые данные о скорости */
+	if __PGCS_IsFlagVelDataUpdateSet()
+	{
+		/* Сброс флага */
+		__PGCS_ReSetFlagVelDataUpdate();
+
+		/* Calculate error covariance matrix square root */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step1_CalculateErrorCovarianceMatrixSquareRoot(
+				pData_s);
+
+		/* Calculate the sigma-points */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step1_GenerateTheSigmaPoints(
+				pData_s);
+
+		/* Step 2 ################################################################ */
+		/* Propagate each sigma-point through prediction */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step2_ProragateEachSigmaPointsThroughPrediction(
+				pData_s);
+
+		/* Calculate mean of predicted state */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step2_CalculateMeanOfPredictedState(
+				pData_s);
+
+		/* Calculate covariance of predicted state  */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step2_CalculateCovarianceOfPredictedState(
+				pData_s);
+	}
+
+	/* Step 3 ################################################################ */
+	/* Если были приняты новые данные от GNSS модуля */
+	if __PGCS_IsFlagPosDataUpdateSet()
+	{
+		/* Сброс флага */
+		__PGCS_ReSetFlagPosDataUpdate();
+
+		/* Propagate each sigma-point through observation */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step3_PropagateEachSigmaPointThroughObservation(
+				pData_s);
+
+		/* Calculate mean of predicted output */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step3_CalculateMeanOfPredictedOutput(
+				pData_s);
+
+		/* Calculate covariance of predicted output */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step3_CalculateCovarianceOfPredictedOutput(
+				pData_s);
+
+		/* Calculate cross-covariance of state and output */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step3_CalculateCrossCovarOfStateAndOut(
+				pData_s);
+
+		/* Step 4 ################################################################ */
+		/* Calculate Kalman gain */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step4_CalcKalmanGain(
+				pData_s);
+
+		/* Update state estimate */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step4_UpdateStateEstimate(
+				pData_s);
+
+		/* Update error covariance */
+		#if defined (__UKFMO_CHEKING_ENABLE__)
+		matOperationStatus_e =
+		#endif
+			PGCS_Step4_UpdateErrorCovariance(
+				pData_s);
+	}
+
+	#if defined (__UKFMO_CHEKING_ENABLE__)
+	return (matOperationStatus_e);
+	#else
+	return (UKFMO_OK);
+	#endif
 
 }
 
@@ -205,13 +370,13 @@ PGCS_UpdatePosState(
  *
  * @param[in, out]    *pData_s:    Указатель на структуру данных, содержащую
  * 								   данные кинематики
- * 								   
+ *
  * @param[in]    	  *pVel:       Указатель на массив (вектор) скорости по трём осям
  */
 void
 PGCS_SetCurrentFlatVelocity(
-	pgcs_data_s *pData_s,
-	__PGCS_FPT__ *pVel)
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pVel)
 {
 	if !(__PGCS_IsFlagVelDataUpdateSet())
 	{
@@ -231,13 +396,13 @@ PGCS_SetCurrentFlatVelocity(
  *
  * @param[in, out]    *pData_s:    		Указатель на структуру данных, содержащую
  * 								   		данные кинематики
- * 								   
+ *
  * @param[in]    	  *pLatLonAlt:      Указатель на массив (вектор) координаты ДШВ
  */
 void
 PGCS_SetCurrentLLAPos(
-	pgcs_data_s *pData_s,
-	__PGCS_FPT__ *pLatLonAlt)
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pLatLonAlt)
 {
 	if !(__PGCS_IsFlagPosDataUpdateSet())
 	{
@@ -258,18 +423,18 @@ PGCS_SetCurrentLLAPos(
  *
  * @param[in, out]    *pData_s:    		Указатель на структуру данных, содержащую
  * 								   		данные кинематики
- * 								   
+ *
  * @param[in]    	  *pLatLonAlt:      Указатель на массив (вектор) нулевой
  * 										координаты ДШВ
  */
 void
 PGCS_SetZeroLLAPos(
-  pgcs_data_s *pData_s,
-  __PGCS_FPT__ *pLatLonAlt)
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pLatLonAlt)
 {
-		pData_s->kinData_s.lla_pos_zero[0] = *pLatLonAlt++;
-		pData_s->kinData_s.lla_pos_zero[1] = *pLatLonAlt++;
-		pData_s->kinData_s.lla_pos_zero[2] = *pLatLonAlt;
+	pData_s->kinData_s.lla_pos_zero[0] = *pLatLonAlt++;
+	pData_s->kinData_s.lla_pos_zero[1] = *pLatLonAlt++;
+	pData_s->kinData_s.lla_pos_zero[2] = *pLatLonAlt;
 }
 
 /*-------------------------------------------------------------------------*//**
@@ -281,14 +446,14 @@ PGCS_SetZeroLLAPos(
  *
  * @param[in]     	*pData_s:       Указатель на структуру данных, содержащую
  * 								  	данные кинематики
- * 								  	
+ *
  * @param[out]    	*pLatLonAlt:    Указатель на массив (вектор) нулевой
  * 									координаты ДШВ
  */
 void
 PGCS_GetProcessedLLAPos(
-  pgcs_data_s *pData_s,
-  __PGCS_FPT__ *pLatLonAlt)
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pLatLonAlt)
 {
 	*pLatLonAlt++ = pData_s->kinData_s.lla_pos[0];
 	*pLatLonAlt++ = pData_s->kinData_s.lla_pos[1];
@@ -308,18 +473,18 @@ PGCS_GetProcessedLLAPos(
  *
  * @param[in,out]	*pData_s:    Указатель на структуру данных, в которой содержатся
  * 								 кинетические данные
- * 								 
+ *
  * @param[in]    	*pDPos:      Указатель на массив (вектор) координат приращения позиции
  * 								 в проекционной системе
  */
 void
 PGCS_ECEFToLLAAdd2(
-	pgcs_data_s *pData_s,
-	__PGCS_FPT__ *pDPos)
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pDPos)
 {
 	/*					ToDo						*/
 	__PGCS_FPT__ f = 1. / 298.257223563;		eciprocal flattening
-	__PGCS_FPT__ b = PGCS_RE * (1. - f);		semi-minor axis
+	__PGCS_FPT__ b = PGCS_RE * (1. - f);		semi - minor axis
 	__PGCS_FPT__ b2 = b * b;
 
 	__PGCS_FPT__ e2 = 2.*f - (f * f);							first eccentricity squared
@@ -338,7 +503,7 @@ PGCS_ECEFToLLAAdd2(
 	__PGCS_FPT__ P = F / (3 * s1 * s1 * G * G);
 	__PGCS_FPT__ Q = __PGCS_sqrt(1 + 2 * e2 * e2 * P);
 	__PGCS_FPT__ ro = -(e2 * P * r) / (1 + Q) + __PGCS_sqrt((PGCS_RE * PGCS_RE / 2) * (1 + 1 / Q) - ((1 - e2) * P * z2) / (Q *
-                   (1 + Q)) - P * r2 / 2);
+	                  (1 + Q)) - P * r2 / 2);
 	__PGCS_FPT__ tmp = (r - e2 * ro) * (r - e2 * ro);
 	__PGCS_FPT__ U = __PGCS_sqrt(tmp + z2);
 	__PGCS_FPT__ V = __PGCS_sqrt(tmp + (1 - e2) * z2);
@@ -361,7 +526,7 @@ PGCS_ECEFToLLAAdd2(
  */
 void
 PGCS_ECEFToLLAAdd1(
-	pgcs_data_s *pData_s)
+    pgcs_data_s *pData_s)
 {
 	PGCS_ECEFToLLAAdd2(pData_s, pData_s->kinData_s.flat_dpos);
 }
@@ -375,14 +540,14 @@ PGCS_ECEFToLLAAdd1(
  *
  * @param[in,out]		*pData_s:    Указатель на структуру данных, в которой содержатся
  * 								 	 кинетические данные
- * 								 
+ *
  * @param[in]			*pDPos:      Указатель на массив (вектор) координат приращения позиции
  * 								 	 в проекционной системе
  */
 void
 PGCS_FlatToLLA2(
-	pgcs_data_s *pData_s,
-	__PGCS_FPT__ *pDPos)
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ *pDPos)
 {
 	__PGCS_FPT__ re_c = PGCS_RE * __PGCS_cos((PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
 
@@ -392,18 +557,18 @@ PGCS_FlatToLLA2(
 }
 
 /*-------------------------------------------------------------------------*//**
- * @author    Konstantin Ganshin
- * @date      29-Oct-2019
- *
- * @brief     Функция обратного проецирования координат из плоскоземельной
- * 			  системы (ECEF) во всемирную систему (WGS84)
- *
- * @param[in,out]   	*pData_s:    Указатель на структуру данных, в которой содержатся
- * 								     кинетические данные
- */
+* @author    Konstantin Ganshin
+* @date      29-Oct-2019
+*
+* @brief     Функция обратного проецирования координат из плоскоземельной
+* 			  системы (ECEF) во всемирную систему (WGS84)
+*
+* @param[in,out]   	*pData_s:    Указатель на структуру данных, в которой содержатся
+* 								     кинетические данные
+*/
 void
 PGCS_FlatToLLA1(
-	pgcs_data_s *pData_s)
+    pgcs_data_s *pData_s)
 {
 	PGCS_FlatToLLA2(pData_s, pData_s->kinData_s.flat_dpos);
 }
@@ -415,22 +580,22 @@ PGCS_FlatToLLA1(
  * @brief     Функция, производящая интегрирование вектора скоростей и заполняющая
  * 			  вектор приращения координат в проекционной системе последним хранимым
  * 			  значением
- * 			  
+ *
  *
  * @param[in,out]		*pData_s:    Указатель на структуру данных, в которой содержатся
  * 						    	 	 кинетические данные
  */
-void 
+void
 PGCS_IntegrateFlat(
-	pgcs_data_s *pData_s)
+    pgcs_data_s *pData_s)
 {
-		NINTEG_Trapz(&(pData_s->kinData_s.flat_pos_integ[0]), pData_s->kinData_s.flat_vel[0]);
-		NINTEG_Trapz(&(pData_s->kinData_s.flat_pos_integ[1]), pData_s->kinData_s.flat_vel[1]);
-		NINTEG_Trapz(&(pData_s->kinData_s.flat_pos_integ[2]), pData_s->kinData_s.flat_vel[2]);
+	NINTEG_Trapz(&(pData_s->kinData_s.flat_pos_integ[0]), pData_s->kinData_s.flat_vel[0]);
+	NINTEG_Trapz(&(pData_s->kinData_s.flat_pos_integ[1]), pData_s->kinData_s.flat_vel[1]);
+	NINTEG_Trapz(&(pData_s->kinData_s.flat_pos_integ[2]), pData_s->kinData_s.flat_vel[2]);
 
-		pData_s->kinData_s.flat_dpos[0] = NINTEG_TrapzGetLastVal(pData_s->kinData_s.flat_pos_integ[0]);
-		pData_s->kinData_s.flat_dpos[1] = NINTEG_TrapzGetLastVal(pData_s->kinData_s.flat_pos_integ[1]);
-		pData_s->kinData_s.flat_dpos[2] = NINTEG_TrapzGetLastVal(pData_s->kinData_s.flat_pos_integ[2]);
+	pData_s->kinData_s.flat_dpos[0] = NINTEG_TrapzGetLastVal(pData_s->kinData_s.flat_pos_integ[0]);
+	pData_s->kinData_s.flat_dpos[1] = NINTEG_TrapzGetLastVal(pData_s->kinData_s.flat_pos_integ[1]);
+	pData_s->kinData_s.flat_dpos[2] = NINTEG_TrapzGetLastVal(pData_s->kinData_s.flat_pos_integ[2]);
 }
 
 /*-------------------------------------------------------------------------*//**
@@ -442,13 +607,13 @@ PGCS_IntegrateFlat(
  *
  * @param[in,out]		*pData_s:    Указатель на структуру данных, в которой содержатся
  * 						   	  	     кинетические данные
- * 						   	  	   
+ *
  * @param[in]				  dt:    Новый период интегрирования
  */
 void
 PGCS_UpdateDt(
-	pgcs_data_s *pData_s,
-	__PGCS_FPT__ dt)
+    pgcs_data_s *pData_s,
+    __PGCS_FPT__ dt)
 {
 	pData_s->kinData_s.flat_pos_integ[0].dT = dt;
 	pData_s->kinData_s.flat_pos_integ[1].dT = dt;
@@ -465,14 +630,14 @@ PGCS_UpdateDt(
  *
  * @param[out] 	*pData_s:			Указатель на структуру данных, в которой содержаться
  * 									параметры, необходимые для работы UKF
- * 									
- * @param[in]  	*pMatrixPointers_s: Указатель на структуру данных, содержащую 
+ *
+ * @param[in]  	*pMatrixPointers_s: Указатель на структуру данных, содержащую
  * 									указатели на области памяти матричных структур
  */
 void __PGCS_FNC_ONCE_MEMORY_LOCATION
 PGSS_Init_MatrixStructs(
-	pgcs_data_s 		*pData_s,
-	ukfsif_all_data_s 	*pMatrixPointers_s)
+    pgcs_data_s 		*pData_s,
+    ukfsif_all_data_s 	*pMatrixPointers_s)
 {
 	/* Объявление структуры для инициализации указателей на матрицы */
 	ukfsif_all_data_init_s    initMatrixPointers_s;
@@ -480,365 +645,365 @@ PGSS_Init_MatrixStructs(
 
 	/* Инициализация матрицы шума Q */
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.ukfData_s.noiseMatrix_s.QMat_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.ukfData_s.noiseMatrix_s.QMat_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s,
-		sizeof(pData_s->ukfData_s.noiseMatrix_s.QMat_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s,
+	    sizeof(pData_s->ukfData_s.noiseMatrix_s.QMat_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_Q] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.noiseMatrix_s.QMat_s.mat_s);
 
 	/* Инициализация матрицы шума R */
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.noiseMatrix_s.RMat_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.noiseMatrix_s.RMat_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s,
-		sizeof(pData_s->ukfData_s.noiseMatrix_s.RMat_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s,
+	    sizeof(pData_s->ukfData_s.noiseMatrix_s.RMat_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_R] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.noiseMatrix_s.RMat_s.mat_s);
 
 	/* Инициализация матрицы пространства состояний */
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.stateMat_s.mat_s, 			/* !< Указатель на структуру матрицы */
-		PGCS_LEN_MATRIX_ROW, 					/* !< Количество строк */
-		PGCS_LEN_MATRIX_COL,					/* !< Количество столбцов */
-		pData_s->ukfData_s.stateMat_s.memForMatrix[0u] 	/* !< Указатель на область памяти для хранения матрицы */
+	    &pData_s->ukfData_s.stateMat_s.mat_s, 			/* !< Указатель на структуру матрицы */
+	    PGCS_LEN_MATRIX_ROW, 					/* !< Количество строк */
+	    PGCS_LEN_MATRIX_COL,					/* !< Количество столбцов */
+	    pData_s->ukfData_s.stateMat_s.memForMatrix[0u] 	/* !< Указатель на область памяти для хранения матрицы */
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.stateMat_s.mat_s,
-		sizeof (pData_s->ukfData_s.stateMat_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.stateMat_s.mat_s,
+	    sizeof (pData_s->ukfData_s.stateMat_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_x_LxL] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.stateMat_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.stateMat_s.mat_s);
 
 	/* Инициализация вектора пространства состояний */
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.x_apriori_s.mat_s,
-		PGCS_LEN_STATE,
-		1u,
-		pData_s->ukfData_s.x_apriori_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.x_apriori_s.mat_s,
+	    PGCS_LEN_STATE,
+	    1u,
+	    pData_s->ukfData_s.x_apriori_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.x_apriori_s.mat_s,
-		sizeof(pData_s->ukfData_s.x_apriori_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.x_apriori_s.mat_s,
+	    sizeof(pData_s->ukfData_s.x_apriori_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_x_apriori] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.x_apriori_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.x_apriori_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.x_posteriori_s.mat_s,
-		PGCS_LEN_STATE,
-		1u,
-		pData_s->ukfData_s.x_posteriori_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.x_posteriori_s.mat_s,
+	    PGCS_LEN_STATE,
+	    1u,
+	    pData_s->ukfData_s.x_posteriori_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.x_posteriori_s.mat_s,
-		sizeof(pData_s->ukfData_s.x_posteriori_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.x_posteriori_s.mat_s,
+	    sizeof(pData_s->ukfData_s.x_posteriori_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_x_posteriori] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.x_posteriori_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.x_posteriori_s.mat_s);
 
 	/* Инициализация матрицы сигма-точек */
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.chiSigmaMat_s.mat_s,
-		PGCS_LEN_SIGMA_ROW,
-		PGCS_LEN_SIGMA_COL,
-		pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.chiSigmaMat_s.mat_s,
+	    PGCS_LEN_SIGMA_ROW,
+	    PGCS_LEN_SIGMA_COL,
+	    pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.chiSigmaMat_s.mat_s,
-		sizeof(pData_s->ukfData_s.chiSigmaMat_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.chiSigmaMat_s.mat_s,
+	    sizeof(pData_s->ukfData_s.chiSigmaMat_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_chi_predict] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.chiSigmaMat_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.chiSigmaMat_s.mat_s);
 
 	/* Инициализация матрицы сигма-точек (после функции преобразования) */
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.chiSigmaPostMat_s.mat_s,
-		PGCS_LEN_SIGMA_ROW,
-		PGCS_LEN_SIGMA_COL,
-		pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.chiSigmaPostMat_s.mat_s,
+	    PGCS_LEN_SIGMA_ROW,
+	    PGCS_LEN_SIGMA_COL,
+	    pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)	&pData_s->ukfData_s.chiSigmaPostMat_s.mat_s,
-		sizeof				(pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix));
+	    (ukfmo_matrix_s*)	&pData_s->ukfData_s.chiSigmaPostMat_s.mat_s,
+	    sizeof				(pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_chi_apriori] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.chiSigmaPostMat_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.chiSigmaPostMat_s.mat_s);
 
 	/* Инициализация матрицы квадратного корня от матрицы ковариации "P" */
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.sqrtP_apriori_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.sqrtP_apriori_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.sqrtP_apriori_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.sqrtP_apriori_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.sqrtP_apriori_s.mat_s,
-		sizeof(pData_s->ukfData_s.sqrtP_apriori_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.sqrtP_apriori_s.mat_s,
+	    sizeof(pData_s->ukfData_s.sqrtP_apriori_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_P_sqrt] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.sqrtP_apriori_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.sqrtP_apriori_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.muMean_s.mat_s,
-		PGCS_LEN_SIGMA_COL,
-		1u,
-		pData_s->ukfData_s.muMean_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.muMean_s.mat_s,
+	    PGCS_LEN_SIGMA_COL,
+	    1u,
+	    pData_s->ukfData_s.muMean_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.muMean_s.mat_s,
-		sizeof(pData_s->ukfData_s.muMean_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.muMean_s.mat_s,
+	    sizeof(pData_s->ukfData_s.muMean_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_muMean] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.muMean_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.muMean_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.muCovar_s.mat_s,
-		PGCS_LEN_SIGMA_COL,
-		1u,
-		pData_s->ukfData_s.muCovar_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.muCovar_s.mat_s,
+	    PGCS_LEN_SIGMA_COL,
+	    1u,
+	    pData_s->ukfData_s.muCovar_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.muCovar_s.mat_s,
-		sizeof(pData_s->ukfData_s.muCovar_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.muCovar_s.mat_s,
+	    sizeof(pData_s->ukfData_s.muCovar_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_muCovar] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.muCovar_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.muCovar_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.mat_s,
-		PGCS_LEN_STATE,
-		1u,
-		pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.mat_s,
+	    PGCS_LEN_STATE,
+	    1u,
+	    pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*)&pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.mat_s,
-		sizeof (pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.memForMatrix));
+	    (ukfmo_matrix_s*)&pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.mat_s,
+	    sizeof (pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_chi_priory_MINUS_x_priory] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.chi_apriory_minus_x_apriory_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.mat_s,
-		1u,
-		PGCS_LEN_STATE,
-		pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.mat_s,
+	    1u,
+	    PGCS_LEN_STATE,
+	    pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		(ukfmo_matrix_s*) &pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.mat_s,
-		sizeof(pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.memForMatrix));
+	    (ukfmo_matrix_s*) &pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.mat_s,
+	    sizeof(pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_chi_priory_MINUS_x_priory_TRANSPOSE] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.chi_apriory_minus_x_apriory_Transpose_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.resultOfMult2Matrix_s.mat_s,
-		PGCS_LEN_STATE,
-		PGCS_LEN_STATE,
-		pData_s->ukfData_s.resultOfMult2Matrix_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.resultOfMult2Matrix_s.mat_s,
+	    PGCS_LEN_STATE,
+	    PGCS_LEN_STATE,
+	    pData_s->ukfData_s.resultOfMult2Matrix_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.resultOfMult2Matrix_s.mat_s,
-		sizeof(pData_s->ukfData_s.resultOfMult2Matrix_s.memForMatrix));
+	    &pData_s->ukfData_s.resultOfMult2Matrix_s.mat_s,
+	    sizeof(pData_s->ukfData_s.resultOfMult2Matrix_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_result_of_mult_2_matrix] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.resultOfMult2Matrix_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.resultOfMult2Matrix_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.P_apriori_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.P_apriori_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.P_apriori_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.P_apriori_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.P_apriori_s.mat_s,
-		sizeof(pData_s->ukfData_s.P_apriori_s.memForMatrix));
+	    &pData_s->ukfData_s.P_apriori_s.mat_s,
+	    sizeof(pData_s->ukfData_s.P_apriori_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_P_apriory] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.P_apriori_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.P_apriori_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.psi_apriori_s.mat_s,
-		PGCS_LEN_SIGMA_ROW,
-		PGCS_LEN_SIGMA_COL,
-		pData_s->ukfData_s.psi_apriori_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.psi_apriori_s.mat_s,
+	    PGCS_LEN_SIGMA_ROW,
+	    PGCS_LEN_SIGMA_COL,
+	    pData_s->ukfData_s.psi_apriori_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.psi_apriori_s.mat_s,
-		sizeof(pData_s->ukfData_s.psi_apriori_s.memForMatrix));
+	    &pData_s->ukfData_s.psi_apriori_s.mat_s,
+	    sizeof(pData_s->ukfData_s.psi_apriori_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_psi_apriori] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.psi_apriori_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.psi_apriori_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.y_apriori_s.mat_s,
-		PGCS_LEN_STATE,
-		1u,
-		pData_s->ukfData_s.y_apriori_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.y_apriori_s.mat_s,
+	    PGCS_LEN_STATE,
+	    1u,
+	    pData_s->ukfData_s.y_apriori_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.y_apriori_s.mat_s,
-		sizeof(pData_s->ukfData_s.y_apriori_s.memForMatrix));
+	    &pData_s->ukfData_s.y_apriori_s.mat_s,
+	    sizeof(pData_s->ukfData_s.y_apriori_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_y_apriori] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.y_apriori_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.y_apriori_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.Pyy_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.Pyy_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.Pyy_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.Pyy_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.Pyy_s.mat_s,
-		sizeof(pData_s->ukfData_s.Pyy_s.memForMatrix));
+	    &pData_s->ukfData_s.Pyy_s.mat_s,
+	    sizeof(pData_s->ukfData_s.Pyy_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_Pyy] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.Pyy_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.Pyy_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.mat_s,
-		1u,
-		PGCS_LEN_STATE,
-		pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.memForMatrix[0u]
+	    &pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.mat_s,
+	    1u,
+	    PGCS_LEN_STATE,
+	    pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.mat_s,
-		sizeof(pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.memForMatrix));
+	    &pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.mat_s,
+	    sizeof(pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_psi_priory_MINUS_y_priory_TRANSPOSE] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.psi_priory_MINUS_y_priory_TRANSPOSE.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.Pxy_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.Pxy_s.memForMatrix[0u]
+	    &pData_s->ukfData_s.Pxy_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.Pxy_s.memForMatrix[0u]
 	);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.Pxy_s.mat_s,
-		sizeof(pData_s->ukfData_s.Pxy_s.memForMatrix));
+	    &pData_s->ukfData_s.Pxy_s.mat_s,
+	    sizeof(pData_s->ukfData_s.Pxy_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_Pxy] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.Pxy_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.Pxy_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.PyyInv_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.PyyInv_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.PyyInv_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.PyyInv_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.PyyInv_s.mat_s,
-		sizeof(pData_s->ukfData_s.PyyInv_s.memForMatrix));
+	    &pData_s->ukfData_s.PyyInv_s.mat_s,
+	    sizeof(pData_s->ukfData_s.PyyInv_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_Pyy_INV] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.PyyInv_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.PyyInv_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.K_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.K_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.K_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.K_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.K_s.mat_s,
-		sizeof(pData_s->ukfData_s.K_s.memForMatrix));
+	    &pData_s->ukfData_s.K_s.mat_s,
+	    sizeof(pData_s->ukfData_s.K_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_K] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.K_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.K_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.y_posteriori_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		1u,
-		pData_s->ukfData_s.y_posteriori_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.y_posteriori_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    1u,
+	    pData_s->ukfData_s.y_posteriori_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.y_posteriori_s.mat_s,
-		sizeof(pData_s->ukfData_s.y_posteriori_s.memForMatrix));
+	    &pData_s->ukfData_s.y_posteriori_s.mat_s,
+	    sizeof(pData_s->ukfData_s.y_posteriori_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_y_posteriori] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.y_posteriori_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.y_posteriori_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.innovation_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		1u,
-		pData_s->ukfData_s.innovation_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.innovation_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    1u,
+	    pData_s->ukfData_s.innovation_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.innovation_s.mat_s,
-		sizeof(pData_s->ukfData_s.innovation_s.memForMatrix));
+	    &pData_s->ukfData_s.innovation_s.mat_s,
+	    sizeof(pData_s->ukfData_s.innovation_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_innovation] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.innovation_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.innovation_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.P_predict_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.P_predict_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.P_predict_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.P_predict_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.P_predict_s.mat_s,
-		sizeof(pData_s->ukfData_s.P_predict_s.memForMatrix));
+	    &pData_s->ukfData_s.P_predict_s.mat_s,
+	    sizeof(pData_s->ukfData_s.P_predict_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_P] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.P_predict_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.P_predict_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.K_Transpose_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.K_Transpose_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.K_Transpose_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.K_Transpose_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.K_Transpose_s.mat_s,
-		sizeof(pData_s->ukfData_s.K_Transpose_s.memForMatrix));
+	    &pData_s->ukfData_s.K_Transpose_s.mat_s,
+	    sizeof(pData_s->ukfData_s.K_Transpose_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_K_TRANSPOSE] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.K_Transpose_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.K_Transpose_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.x_predict_temp_s.mat_s,
-		PGCS_LEN_MATRIX_ROW,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.x_predict_temp_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.x_predict_temp_s.mat_s,
+	    PGCS_LEN_MATRIX_ROW,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.x_predict_temp_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.x_predict_temp_s.mat_s,
-		sizeof(pData_s->x_predict_temp_s.memForMatrix));
+	    &pData_s->ukfData_s.x_predict_temp_s.mat_s,
+	    sizeof(pData_s->x_predict_temp_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_x_LxL_TEMP] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.x_predict_temp_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.x_predict_temp_s.mat_s);
 
 	UKFMO_MatrixInit(
-		&pData_s->ukfData_s.x_predict_temp_ones_s.mat_s,
-		1u,
-		PGCS_LEN_MATRIX_COL,
-		pData_s->ukfData_s.x_predict_temp_ones_s.memForMatrix[0u]);
+	    &pData_s->ukfData_s.x_predict_temp_ones_s.mat_s,
+	    1u,
+	    PGCS_LEN_MATRIX_COL,
+	    pData_s->ukfData_s.x_predict_temp_ones_s.memForMatrix[0u]);
 	__UKFMO_CheckMatrixSize(
-		&pData_s->ukfData_s.x_predict_temp_ones_s.mat_s,
-		sizeof(pData_s->ukfData_s.x_predict_temp_ones_s.memForMatrix));
+	    &pData_s->ukfData_s.x_predict_temp_ones_s.mat_s,
+	    sizeof(pData_s->ukfData_s.x_predict_temp_ones_s.memForMatrix));
 	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_x_1xL_ones_TEMP] =
-		__PGCS_CheckMatrixStructValidation(
-			&pData_s->ukfData_s.x_predict_temp_ones_s.mat_s);
+	    __PGCS_CheckMatrixStructValidation(
+	        &pData_s->ukfData_s.x_predict_temp_ones_s.mat_s);
 
 	/* Копирование указателей на структуры матриц (Эта функция должна быть
 	 * вызвана в конце) */
 	UKFSIF_Init_SetMatrixPointers(
-		pMatrixPointers_s,
-		&initMatrixPointers_s,
-		(uint16_t) PGCS_LEN_STATE);
+	    pMatrixPointers_s,
+	    &initMatrixPointers_s,
+	    (uint16_t) PGCS_LEN_STATE);
 
 }
 
 static void __PGCS_FNC_ONCE_MEMORY_LOCATION
 PGCS_Init_NoiseMatrix(
-	ukfmo_matrix_s 	*pNoiseMat,
-	__PGCS_FPT__ 	*pNoiseMatDiag)
+    ukfmo_matrix_s 	*pNoiseMat,
+    __PGCS_FPT__ 	*pNoiseMatDiag)
 {
 	/* Сброс матрицы шумов в нуль */
 	UKFMO_MatrixZeros(pNoiseMat);
@@ -853,10 +1018,320 @@ PGCS_Init_NoiseMatrix(
 			while (1);
 		}
 		pNoiseMat->pData[__UKFMO_GetIndexInOneFromTwoDim(pNoiseMat, i, i)] =
-			*pNoiseMatDiag++;
+		    *pNoiseMatDiag++;
 	}
 }
 
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @author    Konstantin Ganshin
+ * @date      09-сен-2019
+ *
+ * @brief    Функция выполняет нижнее разложение Холецкого матрицы ковариации,
+ *           полученной на предыдущей итерации
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step1_CalculateErrorCovarianceMatrixSquareRoot(
+	pgcs_data_s *pData_s)
+{
+	#if defined (__UKFMO_CHEKING_ENABLE__)
+	ukfmo_fnc_status_e matOperationStatus_e;
+	#endif
+
+	#if defined (__UKFMO_CHEKING_ENABLE__)
+	/* Копирование матрицы P в матрицу SQRT_P */
+	matOperationStatus_e =
+	#endif
+		UKFMO_CopyMatrix(
+			__PGCS_CheckMatrixStructValidation(
+				&pData_s->ukfData_s.sqrtP_apriori_s.mat_s),
+			__PGCS_CheckMatrixStructValidation(
+				&pData_s->ukfData_s.P_predict_s.mat_s));
+
+	#if defined (__UKFMO_CHEKING_ENABLE__)
+	/* Нижнее разложение Холецкого */
+	matOperationStatus_e =
+	#endif
+		UKFMO_GetCholeskyLow(
+			__PGCS_CheckMatrixStructValidation(
+				&pData_s->ukfData_s.sqrtP_apriori_s.mat_s));
+	__UKFMO_CheckMatrixPosDefine(matOperationStatus_e);
+
+	#if defined (__UKFMO_CHEKING_ENABLE__)
+	return (matOperationStatus_e);
+	#else
+	return (UKFMO_OK);
+	#endif
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @author    Konstantin Ganshin
+ * @date      09-сен-2019
+ *
+ * @brief    Функция выполняет генерацию Сигма-точек
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+VGCS_Step1_GenerateTheSigmaPoints(
+	pgcs_data_s *pData_s)
+{
+	/* Calculate the sigma-points */
+	UKFSIF_Step1_CalculateTheSigmaPoints(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.calcTheSigmaPoints_s,
+		pData_s->ukfData_s.scalar_s.sqrtLamLen);
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция реализует шаг предсказания на основе матрицы Сигма-точек
+ *           "chi_k-1" и измеренных линейных ускорений в нормальной земной СК
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step2_ProragateEachSigmaPointsThroughPrediction(
+	pgcs_data_s *pData_s)
+{
+	size_t i;
+	__PGCS_FPT__ deltaVel_a[3u];
+
+	for (i = 0u;
+		 i < ((size_t) PGCS_LEN_SIGMA_COL);
+		 i++)
+	{
+
+		/* Сложение приращения позиции с предыдущим значением позиции, и
+		 * запись в матрицу (chi k|k-1) */
+		pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix[PGCS_POS_X][i] =
+			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_X][i] + deltaVel_a[PGCS_POS_X];
+
+		pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix[PGCS_POS_Y][i] =
+			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_Y][i] + deltaVel_a[PGCS_POS_Y];
+
+		pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix[PGCS_POS_Z][i] =
+			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_Z][i] + deltaVel_a[PGCS_POS_Z];
+	}
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция выполняет усреднение матрицы Сигма-точек "chi_k|k-1" с помощью
+ *           вектора весовых коэффициентов
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step2_CalculateMeanOfPredictedState(
+	pgcs_data_s *pData_s)
+{
+	UKFSIF_Step2_CalculateMeanOfPredictedState(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.calcMeanOfPredictState_s);
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция рассчитывает ковариацию предсказанного состояния
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step2_CalculateCovarianceOfPredictedState(
+	pgcs_data_s *pData_s)
+{
+	UKFSIF_Step2_CalculateCovarianceOfPredictedState(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.calcCovarOfPredictState_s);
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция выполняет предсказание вектора измерений
+ *           на основе матрицы Сигма-точек "chi_k|k-1"
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __VGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step3_PropagateEachSigmaPointThroughObservation(
+	pgcs_data_s *pData_s)
+{
+	/* Т.к. матрица psi_k|k-1  соответствует матрице chi_k|k-1 с 0-й по 2-ю ячейку, то
+	 * выполним копирование матрицы без преобразования */
+	size_t row, col;
+	for (row = 0u; row < 3u; row++)
+	{
+		for(col = 0u; col < pData_s->psi_apriori_s.mat_s.numCols; col++)
+		{
+			pData_s->ukfData_s.psi_apriori_s.memForMatrix[row][col] =
+				pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[row][col];
+		}
+	}
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция выполняет усреднение матрицы Сигма-точек "psi_k|k-1" с 
+ *           помощью вектора весовых коэффициентов
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step3_CalculateMeanOfPredictedOutput(
+	pgcs_data_s *pData_s)
+{
+	UKFSIF_Step3_CalculateMeanOfPredictedOutput(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.caclMeanOfPredictOut_s);
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция рассчитывает ковариацию предсказанного вектора измерений
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step3_CalculateCovarianceOfPredictedOutput(
+	pgcs_data_s *pData_s)
+{
+	UKFSIF_Step3_CalculateCovarianceOfPredictedOutput(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.caclCovarOfPredictOut_s);
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция вычисляет матрицу кросс-ковариации от "предсказания"
+ *           и "измерения"
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step3_CalculateCrossCovarOfStateAndOut(
+	pgcs_data_s *pData_s)
+{
+	UKFSIF_Step3_CalculateCrossCovarOfStateAndOut(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.calcCrossCovarOfStateAndOut_s);
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция вычисляет матрицу коэффициентов усиления Калмана
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step4_CalcKalmanGain(
+	pgcs_data_s *pData_s)
+{
+	UKFSIF_Step4_CalcKalmanGain(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.calcKalmanGain_s);
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция выполняет шаг коррекции вектора пространства состояний
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step4_UpdateStateEstimate(
+	pgcs_data_s *pData_s)
+{
+	UKFSIF_Step4_UpdateStateEstimate(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.updateState_s);
+
+	return (UKFMO_OK);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Mickle Isaev
+ * @date      09-сен-2019
+ *
+ * @brief    Функция обновляет матрицу ковариации
+ *
+ * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
+ * 								необходимые для работы UKF данные
+ *
+ * @return  Статус матричных операций, которые используются на данном шаге
+ */
+static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
+PGCS_Step4_UpdateErrorCovariance(
+	pgcs_data_s *pData_s)
+{
+	UKFSIF_Step4_UpdateErrorCovariance(
+		&pData_s->ukfData_s.ukfsifMatrixPointers_s.updateErrCov_s);
+
+	return (UKFMO_OK);
+}
 /*#### |End  | <-- Секция - "Описание локальных функций" #####################*/
 
 
