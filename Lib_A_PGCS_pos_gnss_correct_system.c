@@ -40,6 +40,11 @@ PGCS_FlatToLLA1(
     pgcs_data_s *pData_s);
 
 void
+PGCS_FlatToDLLA(
+	__PGCS_FPT__ *pDPosFlat,
+	__PGCS_FPT__ *pDPosLLA);
+
+void
 PGCS_IntegrateFlat(
     pgcs_data_s *pData_s);
 
@@ -242,15 +247,11 @@ pgcs_fnc_status_e
 PGCS_UpdatePosState(
     pgcs_data_s *pData_s)
 {
-	if __PGCS_IsFlagVelDataUpdateSet()
-	{
-		PGCS_IntegrateFlat(pData_s);
-		__PGCS_ReSetFlagVelDataUpdate();
-	}
-
+	//PGCS_IntegrateFlat(pData_s);
+	//__PGCS_ReSetFlagVelDataUpdate();
 	/* Выполнение проекции приращения местоположения из нормальной Земной СК
 	 * (модели плоской Земли) в приращение долготы/широты/высоты */
-	__PGCS_BackProjectCoordSys1(pData_s);
+	//__PGCS_BackProjectCoordSys1(pData_s);
 
 	#ifdef __UKFMO_CHEKING_ENABLE__
 		ukfmo_fnc_status_e matOperationStatus_e = UKFMO_OK;
@@ -258,10 +259,10 @@ PGCS_UpdatePosState(
 
 	/* Step 1 ################################################################ */
 	/* Были ли получены новые данные о скорости */
-	if __PGCS_IsFlagVelDataUpdateSet()
+	if __PGCS_IsFlagPosDataUpdateSet()
 	{
 		/* Сброс флага */
-		__PGCS_ReSetFlagVelDataUpdate();
+		__PGCS_ReSetFlagPosDataUpdate();
 
 		/* Calculate error covariance matrix square root */
 		#ifdef __UKFMO_CHEKING_ENABLE__
@@ -540,7 +541,7 @@ PGCS_ECEFToLLAAdd1(
  * @date      29-Oct-2019
  *
  * @brief     Функция обратного проецирования координат из плоскоземельной
- * 			  системы (ECEF) во всемирную систему (WGS84)
+ * 			  системы (Flat) во всемирную систему (WGS84)
  *
  * @param[in,out]		*pData_s:    Указатель на структуру данных, в которой содержатся
  * 								 	 кинетические данные
@@ -553,11 +554,11 @@ PGCS_FlatToLLA2(
     pgcs_data_s *pData_s,
     __PGCS_FPT__ *pDPos)
 {
-	__PGCS_FPT__ re_c = PGCS_RE * __PGCS_cos(PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
+	PGCS_FlatToDLLA(pDPos, pData_s->kinData_s.lla_pos);
 
-	pData_s->kinData_s.lla_pos[0] = *(pDPos + 1) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * PGCS_RE) + pData_s->kinData_s.lla_pos_zero[0];
-	pData_s->kinData_s.lla_pos[1] = *(pDPos + 0) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * re_c) + pData_s->kinData_s.lla_pos_zero[1];
-	pData_s->kinData_s.lla_pos[2] = *(pDPos + 2) + pData_s->kinData_s.lla_pos_zero[2];
+	pData_s->kinData_s.lla_pos[0] = + pData_s->kinData_s.lla_pos_zero[0];
+	pData_s->kinData_s.lla_pos[1] = + pData_s->kinData_s.lla_pos_zero[1];
+	pData_s->kinData_s.lla_pos[2] = + pData_s->kinData_s.lla_pos_zero[2];
 }
 
 /*-------------------------------------------------------------------------*//**
@@ -565,16 +566,42 @@ PGCS_FlatToLLA2(
 * @date      29-Oct-2019
 *
 * @brief     Функция обратного проецирования координат из плоскоземельной
-* 			  системы (ECEF) во всемирную систему (WGS84)
+* 			 системы (Flat) во всемирную систему (WGS84)
 *
 * @param[in,out]   	*pData_s:    Указатель на структуру данных, в которой содержатся
-* 								     кинетические данные
+* 								 кинетические данные
 */
 void
 PGCS_FlatToLLA1(
     pgcs_data_s *pData_s)
 {
 	PGCS_FlatToLLA2(pData_s, pData_s->kinData_s.flat_dpos);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      02-Nov-2019
+ *
+ * @brief     Функция обратного проецирования координат из плоскоземельной
+ * 			  системы (Flat) в приращение координаты во всемирной системе
+ * 			  (WGS84)
+ *
+ * @param[in]    	*pDPosFlat:    Указатель на массив (вектор) координат приращения позиции
+ * 								   в проекционной системе 
+ * 								   
+ * @param[out]    	*pDPosLLA:     Указатель на массив (вектор) координат приращения позиции
+ * 								   в глобальной системе
+ */
+void
+PGCS_FlatToDLLA(
+	__PGCS_FPT__ *pDPosFlat,
+	__PGCS_FPT__ *pDPosLLA)
+{
+	__PGCS_FPT__ re_c = PGCS_RE * __PGCS_cos(PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
+
+	*(pDPosLLA + 0) = *(pDPosFlat + 1) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * PGCS_RE);
+	*(pDPosLLA + 1) = *(pDPosFlat + 0) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * re_c);
+	*(pDPosLLA + 2) = *(pDPosFlat + 2);
 }
 
 /*-------------------------------------------------------------------------*//**
@@ -1076,7 +1103,7 @@ PGCS_Step1_CalculateErrorCovarianceMatrixSquareRoot(
 /*-------------------------------------------------------------------------*//**
  * @author    Mickle Isaev
  * @author    Konstantin Ganshin
- * @date      09-сен-2019
+ * @date      29-oct-2019
  *
  * @brief    Функция выполняет генерацию Сигма-точек
  *
@@ -1099,10 +1126,11 @@ PGCS_Step1_GenerateTheSigmaPoints(
 
 /*-------------------------------------------------------------------------*//**
  * @author    Mickle Isaev
- * @date      09-сен-2019
+ * @author    Konstantin Ganshin
+ * @date      02-Nov-2019
  *
  * @brief    Функция реализует шаг предсказания на основе матрицы Сигма-точек
- *           "chi_k-1" и измеренных линейных ускорений в нормальной земной СК
+ *           "chi_k-1" и измеренного вектора скоростей в нормальной земной СК
  *
  * @param[in,out] 	*pData_s: 	Указатель на структуру данных, содержащую
  * 								необходимые для работы UKF данные
@@ -1113,24 +1141,29 @@ static pgcs_fnc_status_e __PGCS_FNC_LOOP_MEMORY_LOCATION
 PGCS_Step2_ProragateEachSigmaPointsThroughPrediction(
 	pgcs_data_s *pData_s)
 {
-	size_t i;
-	__PGCS_FPT__ deltaVel_a[3u];
+	/* Интегрирование скорости для получения приращения координаты
+	 * в проекционной системе */
+	PGCS_IntegrateFlat(pData_s);
 
-	for (i = 0u;
+	/* Осуществление операции обратного проецирования для получения
+	 * приращения координаты ДШВ */
+	__PGCS_FPT__ deltaPosLLA_a[3u];
+	PGCS_FlatToDLLA(*pData_s->kinData_s.flat_dpos, *deltaPosLLA_a);
+
+	for (size_t i = 0u;
 		 i < ((size_t) PGCS_LEN_SIGMA_COL);
 		 i++)
 	{
-
 		/* Сложение приращения позиции с предыдущим значением позиции, и
 		 * запись в матрицу (chi k|k-1) */
 		pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix[PGCS_POS_X][i] =
-			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_X][i] + deltaVel_a[PGCS_POS_X];
+			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_X][i] + deltaPosLLA_a[PGCS_POS_X];
 
 		pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix[PGCS_POS_Y][i] =
-			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_Y][i] + deltaVel_a[PGCS_POS_Y];
+			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_Y][i] + deltaPosLLA_a[PGCS_POS_Y];
 
 		pData_s->ukfData_s.chiSigmaPostMat_s.memForMatrix[PGCS_POS_Z][i] =
-			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_Z][i] + deltaVel_a[PGCS_POS_Z];
+			pData_s->ukfData_s.chiSigmaMat_s.memForMatrix[PGCS_POS_Z][i] + deltaPosLLA_a[PGCS_POS_Z];
 	}
 
 	return (UKFMO_OK);
@@ -1138,6 +1171,7 @@ PGCS_Step2_ProragateEachSigmaPointsThroughPrediction(
 
 /*-------------------------------------------------------------------------*//**
  * @author    Mickle Isaev
+ * @author    Konstantin Ganshin
  * @date      09-сен-2019
  *
  * @brief    Функция выполняет усреднение матрицы Сигма-точек "chi_k|k-1" с помощью
