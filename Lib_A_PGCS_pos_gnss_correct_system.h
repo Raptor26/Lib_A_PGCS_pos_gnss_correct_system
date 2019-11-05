@@ -31,7 +31,7 @@
 
 
 /*#### |Begin| --> Секция - "Определение констант" ###########################*/
-#ifdef(__PGCS_EXTERN_MODE_ENABLE__)
+#ifdef __PGCS_EXTERN_MODE_ENABLE__
 	#include "macros_definitions.h"
 #endif
 
@@ -51,11 +51,11 @@
 /*==== |End  | <-- Секция определения метода обратной проекции ===============*/
 
 /*==== |Begin| --> Секция определения типа числа с плавающей точкой ==========*/
-#ifndef (__PGCS_FPT__)
+#ifndef __PGCS_FPT__
 	#error "Please, set __PGCS_FPT__ to float or double in macros list"
 #endif
 
-#ifndef (__PGCS_FPT_SIZE__)
+#ifndef __PGCS_FPT_SIZE__
 	#error "Please, set __PGCS_FPT_SIZE__ to 4 (that means float) or 8 (that means double) in macros list"
 #endif
 
@@ -80,7 +80,7 @@
 /*==== |End  | <-- Секция определения типа числа с плавающей точкой ==========*/
 
 /*==== |Begin| --> Секция - Макросы для встраиваемых функций =================*/
-#if defined (__GNUC__)
+#ifdef __GNUC__
 
 /* inline*/
 #ifndef __PGCS_INLINE
@@ -111,8 +111,8 @@
 
 /*==== |Begin| --> Секция - Расположение функций библиотеки в специальной
  *                          области памяти ===================================*/
-#ifdef (__PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__)
-	#ifdef (__GNUC__)
+#ifdef __PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__
+	#ifdef __GNUC__
 		#define __PGCS_FNC_ONCE_MEMORY_LOCATION  __attribute__ ((section(__PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__)))
 	#else
 		#error "You defined the name of the memory area for the function location, but the type of your compiler is not supported by the library. You can delete the macro definition __PGCS_FNC_ONCE_MEMORY_LOCATION_NAME__ or extend the macro definition __PGCS_FNC_ONCE_MEMORY_LOCATION for your compiler type"
@@ -121,8 +121,8 @@
 	#define __PGCS_FNC_ONCE_MEMORY_LOCATION
 #endif
 
-#if defined (__PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__)
-	#if defined (__GNUC__)
+#ifdef __PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__
+	#ifdef (__GNUC__)
 		#define __PGCS_FNC_LOOP_MEMORY_LOCATION  __attribute__ ((section(__PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__)))
 	#else
 		#error "You defined the name of the memory area for the function location, but the type of your compiler is not supported by the library. You can delete the macro definition __PGCS_FNC_LOOP_MEMORY_LOCATION_NAME__ or extend the macro definition __PGCS_FNC_LOOP_MEMORY_LOCATION for your compiler type"
@@ -134,9 +134,9 @@
  *                          области памяти ===================================*/
 
 /*==== |Begin| --> Секция - Выбор метода численного интегрирования ===========*/
-#ifndef (__PGCS_INTEG_METHOD__)
+/*#ifndef (__PGCS_INTEG_METHOD__)
 	#error "Please, set __PGCS_INTEG_METHOD__ to one defined in Lib_A_NINTEG_numerical_integration in macros list"
-#endif
+#endif*/
 /*==== |End  | <-- Секция - Выбор метода численного интегрирования ===========*/
 
 /*-------------------------------------------------------------------------*//**
@@ -148,6 +148,9 @@
 /*-------------------------------------------------------------------------*//**
  * @brief  Переопределение числа Пи из стандартной библиотеки math.h
  */
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
 #define PGCS_PI 	(__PGCS_FPT__)M_PI
 
 /*-------------------------------------------------------------------------*//**
@@ -237,7 +240,7 @@ typedef struct
 typedef struct
 {
 	ukfmo_matrix_s mat_s;
-	__PGCS_FPT__ memForMatrix[VGCS_LEN_SIGMA_ROW][VGCS_LEN_SIGMA_COL];
+	__PGCS_FPT__ memForMatrix[PGCS_LEN_SIGMA_ROW][PGCS_LEN_SIGMA_COL];
 } pgcs_matrix_3_7_s;
 
 /*-------------------------------------------------------------------------*//**
@@ -274,6 +277,7 @@ typedef struct
 	 * @brief 	Вектор скорости в проекционной системе
 	 */
 	__PGCS_FPT__ 	flat_vel[3u];
+	uint8_t			isNewVel_flag;
 
 	/*------------------------------------------------------------------------*//**
 	 * @brief 	Вектор приращения позиции в проекционной системе
@@ -294,11 +298,14 @@ typedef struct
 	 * @brief 	Вектор текущей позиции в ДШВ-системе, полученной с GNSS
 	 */
 	__PGCS_FPT__ 	lla_pos_gnss[3u];
+	uint8_t			isNewPos_flag;
 
 	/*------------------------------------------------------------------------*//**
 	 * @brief 	Структура с интегралом координат в проекционной системе
 	 */
 	ninteg_trapz_s 	flat_pos_integ[3u];
+
+	__PGCS_FPT__ re_c;
 
 } pgcs_kin_data_s;
 
