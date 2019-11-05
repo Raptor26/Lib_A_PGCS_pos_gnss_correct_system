@@ -259,10 +259,10 @@ PGCS_UpdatePosState(
 
 	/* Step 1 ################################################################ */
 	/* Были ли получены новые данные о скорости */
-	if __PGCS_IsFlagPosDataUpdateSet()
+	if __PGCS_IsFlagVelDataUpdateSet()
 	{
 		/* Сброс флага */
-		__PGCS_ReSetFlagPosDataUpdate();
+		__PGCS_ReSetFlagVelDataUpdate();
 
 		/* Calculate error covariance matrix square root */
 		#ifdef __UKFMO_CHEKING_ENABLE__
@@ -414,6 +414,10 @@ PGCS_SetCurrentLLAPos(
 		pData_s->kinData_s.lla_pos_gnss[0] = *pLatLonAlt++;
 		pData_s->kinData_s.lla_pos_gnss[1] = *pLatLonAlt++;
 		pData_s->kinData_s.lla_pos_gnss[2] = *pLatLonAlt;
+
+		pData_s->ukfData_s.y_posteriori_s[0] = pData_s->kinData_s.lla_pos_gnss[0];
+		pData_s->ukfData_s.y_posteriori_s[1] = pData_s->kinData_s.lla_pos_gnss[1];
+		pData_s->ukfData_s.y_posteriori_s[2] = pData_s->kinData_s.lla_pos_gnss[2];
 		__PGCS_SetFlagPosDataUpdate();
 	}
 }
@@ -440,6 +444,8 @@ PGCS_SetZeroLLAPos(
 	pData_s->kinData_s.lla_pos_zero[0] = *pLatLonAlt++;
 	pData_s->kinData_s.lla_pos_zero[1] = *pLatLonAlt++;
 	pData_s->kinData_s.lla_pos_zero[2] = *pLatLonAlt;
+
+	re_c = PGCS_RE * __PGCS_cos(PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
 }
 
 /*-------------------------------------------------------------------------*//**
@@ -597,8 +603,6 @@ PGCS_FlatToDLLA(
 	__PGCS_FPT__ *pDPosFlat,
 	__PGCS_FPT__ *pDPosLLA)
 {
-	__PGCS_FPT__ re_c = PGCS_RE * __PGCS_cos(PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
-
 	*(pDPosLLA + 0) = *(pDPosFlat + 1) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * PGCS_RE);
 	*(pDPosLLA + 1) = *(pDPosFlat + 0) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * re_c);
 	*(pDPosLLA + 2) = *(pDPosFlat + 2);
@@ -1148,7 +1152,7 @@ PGCS_Step2_ProragateEachSigmaPointsThroughPrediction(
 	/* Осуществление операции обратного проецирования для получения
 	 * приращения координаты ДШВ */
 	__PGCS_FPT__ deltaPosLLA_a[3u];
-	PGCS_FlatToDLLA(*pData_s->kinData_s.flat_dpos, *deltaPosLLA_a);
+	PGCS_FlatToDLLA(pData_s->kinData_s.flat_dpos, &deltaPosLLA_a);
 
 	for (size_t i = 0u;
 		 i < ((size_t) PGCS_LEN_SIGMA_COL);
@@ -1346,6 +1350,10 @@ PGCS_Step4_UpdateStateEstimate(
 {
 	UKFSIF_Step4_UpdateStateEstimate(
 		&pData_s->ukfData_s.ukfsifMatrixPointers_s.updateState_s);
+
+	pData_s->kinData_s.lla_pos[0] = pData_s->ukfData_s.x_posteriori_s[0];
+	pData_s->kinData_s.lla_pos[1] = pData_s->ukfData_s.x_posteriori_s[1];
+	pData_s->kinData_s.lla_pos[2] = pData_s->ukfData_s.x_posteriori_s[2];
 
 	return (UKFMO_OK);
 }

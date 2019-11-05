@@ -305,6 +305,8 @@ typedef struct
 	 */
 	ninteg_trapz_s 	flat_pos_integ[3u];
 
+	__PGCS_FPT__ re_c;
+
 } pgcs_kin_data_s;
 
 /*-------------------------------------------------------------------------*//**
