@@ -415,9 +415,9 @@ PGCS_SetCurrentLLAPos(
 		pData_s->kinData_s.lla_pos_gnss[1] = *pLatLonAlt++;
 		pData_s->kinData_s.lla_pos_gnss[2] = *pLatLonAlt;
 
-		pData_s->ukfData_s.y_posteriori_s[0] = pData_s->kinData_s.lla_pos_gnss[0];
-		pData_s->ukfData_s.y_posteriori_s[1] = pData_s->kinData_s.lla_pos_gnss[1];
-		pData_s->ukfData_s.y_posteriori_s[2] = pData_s->kinData_s.lla_pos_gnss[2];
+		*(pData_s->ukfData_s.y_posteriori_s.mat_s.pData + 0) = pData_s->kinData_s.lla_pos_gnss[0];
+		*(pData_s->ukfData_s.y_posteriori_s.mat_s.pData + 1) = pData_s->kinData_s.lla_pos_gnss[1];
+		*(pData_s->ukfData_s.y_posteriori_s.mat_s.pData + 2) = pData_s->kinData_s.lla_pos_gnss[2];
 		__PGCS_SetFlagPosDataUpdate();
 	}
 }
@@ -593,7 +593,7 @@ PGCS_FlatToLLA1(
  * 			  (WGS84)
  *
  * @param[in]    	*pDPosFlat:    Указатель на массив (вектор) координат приращения позиции
- * 								   в проекционной системе 
+ * 								   в проекционной системе
  * 								   
  * @param[out]    	*pDPosLLA:     Указатель на массив (вектор) координат приращения позиции
  * 								   в глобальной системе
@@ -1351,9 +1351,9 @@ PGCS_Step4_UpdateStateEstimate(
 	UKFSIF_Step4_UpdateStateEstimate(
 		&pData_s->ukfData_s.ukfsifMatrixPointers_s.updateState_s);
 
-	pData_s->kinData_s.lla_pos[0] = pData_s->ukfData_s.x_posteriori_s[0];
-	pData_s->kinData_s.lla_pos[1] = pData_s->ukfData_s.x_posteriori_s[1];
-	pData_s->kinData_s.lla_pos[2] = pData_s->ukfData_s.x_posteriori_s[2];
+	pData_s->kinData_s.lla_pos[0] = *(pData_s->ukfData_s.x_posteriori_s.mat_s.pData + 0);
+	pData_s->kinData_s.lla_pos[1] = *(pData_s->ukfData_s.x_posteriori_s.mat_s.pData + 1);
+	pData_s->kinData_s.lla_pos[2] = *(pData_s->ukfData_s.x_posteriori_s.mat_s.pData + 2);
 
 	return (UKFMO_OK);
 }
