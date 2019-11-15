@@ -69,7 +69,7 @@
 
 #elif   __PGCS_FPT_SIZE__ == 8
 	#define __PGCS_sqrt(x)		sqrt(x)
-	#define __PGCS_pow(x)		pow(x)
+	#define __PGCS_pow(x,y)		pow(x,y)
 	#define __PGCS_atan(x)		atan(x)
 	#define __PGCS_atan2(x, y)	atan2(x, y)
 	#define __PGCS_cos(x)		cos(x)
