@@ -352,11 +352,11 @@ PGCS_UpdatePosState(
 				pData_s);
 
 		/* Update error covariance */
-		#ifdef __UKFMO_CHEKING_ENABLE__
-		matOperationStatus_e =
-		#endif
-			PGCS_Step4_UpdateErrorCovariance(
-				pData_s);
+//		#ifdef __UKFMO_CHEKING_ENABLE__
+//		matOperationStatus_e =
+//		#endif
+//			PGCS_Step4_UpdateErrorCovariance(
+//				pData_s);
 	}
 
 	#ifdef __UKFMO_CHEKING_ENABLE__
@@ -1026,6 +1026,15 @@ PGSS_Init_MatrixStructs(
 	    __PGCS_CheckMatrixStructValidation(
 	        &pData_s->ukfData_s.x_predict_temp_ones_s.mat_s);
 
+	__UKFMO_MatrixInit(
+		    &pData_s->ukfData_s.PyyTmp_s.mat_s,
+			PGCS_LEN_MATRIX_ROW,
+		    PGCS_LEN_MATRIX_COL,
+		    pData_s->ukfData_s.PyyTmp_s.memForMatrix);
+	initMatrixPointers_s.pMatrix_s_a[UKFSIF_INIT_PyyTmp] =
+		__PGCS_CheckMatrixStructValidation(
+				&pData_s->ukfData_s.PyyTmp_s.mat_s);
+
 	/* Копирование указателей на структуры матриц (Эта функция должна быть
 	 * вызвана в конце) */
 	UKFSIF_Init_SetMatrixPointers(
@@ -1095,7 +1104,7 @@ PGCS_Step1_CalculateErrorCovarianceMatrixSquareRoot(
 		UKFMO_GetCholeskyLow(
 			__PGCS_CheckMatrixStructValidation(
 				&pData_s->ukfData_s.sqrtP_apriori_s.mat_s));
-	__UKFMO_CheckMatrixPosDefine(matOperationStatus_e);
+//	__UKFMO_CheckMatrixPosDefine(matOperationStatus_e);
 
 	#ifdef __UKFMO_CHEKING_ENABLE__
 		return (matOperationStatus_e);
