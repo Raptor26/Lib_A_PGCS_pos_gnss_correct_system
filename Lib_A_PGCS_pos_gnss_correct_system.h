@@ -39,11 +39,13 @@
 #ifndef __PGCS_BACKPROJECTMETHOD
 	#error "__PGCS_BACKPROJECTMETHOD isn't set. You must choose one of the backprojection methods and set it in macro list."
 #elif (__PGCS_BACKPROJECTMETHOD == 1)
-	#define __PGCS_BackProjectCoordSys2(x, y)	PGCS_FlatToLLA2(x, y)
-	#define __PGCS_BackProjectCoordSys1(x)		PGCS_FlatToLLA1(x)
+	#define __PGCS_BackProjectCoordSysD(x, y, z)	PGCS_FlatToDLLA(x, y, z)
+	#define __PGCS_BackProjectCoordSys2(x, y)		PGCS_FlatToLLA2(x, y)
+	#define __PGCS_BackProjectCoordSys1(x)			PGCS_FlatToLLA1(x)
 #elif (__PGCS_BACKPROJECTMETHOD == 2)
-	#define __PGCS_BackProjectCoordSys2(x, y)	PGCS_ECEFToLLAAdd2(x, y)
-	#define __PGCS_BackProjectCoordSys1(x)		PGCS_ECEFToLLAAdd1(x)
+	#define __PGCS_BackProjectCoordSysD(x, y, z)	PGCS_FlatToDLLAprec(x, y, z)
+	#define __PGCS_BackProjectCoordSys2(x, y)		PGCS_ECEFToLLAAdd2(x, y)
+	#define __PGCS_BackProjectCoordSys1(x)			PGCS_ECEFToLLAAdd1(x)
 #else
 	#error "__PGCS_BACKPROJECTMETHOD isn't correct. You must choose one of the backprojection methods and set it in macro list."
 #endif
@@ -69,7 +71,7 @@
 
 #elif   __PGCS_FPT_SIZE__ == 8
 	#define __PGCS_sqrt(x)		sqrt(x)
-	#define __PGCS_pow(x)		pow(x)
+	#define __PGCS_pow(x, y)	pow(x, y)
 	#define __PGCS_atan(x)		atan(x)
 	#define __PGCS_atan2(x, y)	atan2(x, y)
 	#define __PGCS_cos(x)		cos(x)
@@ -146,12 +148,28 @@
 #define PGCS_RE		(__PGCS_FPT__)6378137.0
 
 /*-------------------------------------------------------------------------*//**
+ * @brief  Коэффициент сплюснутости Земли при использовании модели
+ *  эллипсоида WGS84
+ */
+#define PGCS_F 		(__PGCS_FPT__)0.00335281066474748071984552861852
+
+/*-------------------------------------------------------------------------*//**
  * @brief  Переопределение числа Пи из стандартной библиотеки math.h
  */
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
 #endif
 #define PGCS_PI 	(__PGCS_FPT__)M_PI
+
+/*-------------------------------------------------------------------------*//**
+ * @brief  Константа, равная pi/180
+ */
+#define PGCS_DEGRAD 	(__PGCS_FPT__)0.0174532925199432957692369076849
+
+/*-------------------------------------------------------------------------*//**
+ * @brief  Константа, равная 180/pi
+ */
+#define PGCS_RADDEG 	(__PGCS_FPT__)57.295779513082320876798154814105
 
 /*-------------------------------------------------------------------------*//**
  * @brief  Перечисляемый тип, задающий расположение параметров системы в векторе
@@ -305,9 +323,32 @@ typedef struct
 	 */
 	ninteg_trapz_s 	flat_pos_integ[3u];
 
-	__PGCS_FPT__ re_c;
-
 } pgcs_kin_data_s;
+
+typedef struct
+{
+	__PGCS_FPT__ 	re_c;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief 	Вектор начальной позиции в ДШВ-системе (Z means Zero)
+	 */
+	__PGCS_FPT__ 	lla_pos_zero[3u];
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief 	Текущее значение широты
+	 */
+	__PGCS_FPT__ 	mu;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief 	Радиус кривизны в основной вертикали
+	 */
+	__PGCS_FPT__ 	rn;
+
+	/*------------------------------------------------------------------------*//**
+	 * @brief 	Радиус кривизны меридиана
+	 */
+	__PGCS_FPT__ 	rm;
+} pgcs_proj_data_s;
 
 /*-------------------------------------------------------------------------*//**
  * @brief  Структура для хранения данных, необходимых для UKF
@@ -473,6 +514,7 @@ typedef struct
 typedef struct
 {
 	pgcs_kin_data_s 		kinData_s;
+	pgcs_proj_data_s		projData_s;
 	pgcs_ukf_data_s 		ukfData_s;
 
 } pgcs_data_s;
@@ -605,6 +647,35 @@ __PGCS_CheckMatrixStructValidation(
 
 #define __PGCS_CheckMatrixStructValidation(x) 	(x)
 #endif
+
+#define ENU_NED(_po, _pi) 		\
+{								\
+	(_po).x =  (_pi).y;			\
+	(_po).y =  (_pi).x;			\
+	(_po).z = -(_pi).z;			\
+}
+
+/* a += b */
+#define VECT3_ADD(_a, _b) \
+{     \
+    (_a).x += (_b).x;       \
+    (_a).y += (_b).y;       \
+    (_a).z += (_b).z;       \
+}
+
+ /* multiply _vin by transpose of _mat, store in _vout */
+#define MAT33_VECT3_TRANSP_MUL(_vout, _mat, _vin) \
+{     \
+    (_vout).x = MAT33_ELMT((_mat), 0, 0) * (_vin).x + \
+                 MAT33_ELMT((_mat), 1, 0) * (_vin).y + \
+                 MAT33_ELMT((_mat), 2, 0) * (_vin).z;  \
+    (_vout).y = MAT33_ELMT((_mat), 0, 1) * (_vin).x +   \
+                 MAT33_ELMT((_mat), 1, 1) * (_vin).y +   \
+                 MAT33_ELMT((_mat), 2, 1) * (_vin).z;  \
+    (_vout).z = MAT33_ELMT((_mat), 0, 2) * (_vin).x +   \
+                 MAT33_ELMT((_mat), 1, 2) * (_vin).y + \
+                 MAT33_ELMT((_mat), 2, 2) * (_vin).z;  \
+}
 /*#### |End  | <-- Секция - "Определение макросов" ###########################*/
 
 

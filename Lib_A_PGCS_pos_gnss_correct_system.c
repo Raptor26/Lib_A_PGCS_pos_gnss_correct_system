@@ -41,8 +41,15 @@ PGCS_FlatToLLA1(
 
 void
 PGCS_FlatToDLLA(
+	pgcs_proj_data_s *pProjData,
 	__PGCS_FPT__ *pDPosFlat,
 	__PGCS_FPT__ *pDPosLLA);
+
+void
+PGCS_FlatToDLLAprec(
+	pgcs_proj_data_s *pProjData,
+	__PGCS_FPT__ *pDPosFlat,
+	__PGCS_FPT__ *pDPosLLA)
 
 void
 PGCS_IntegrateFlat(
@@ -122,7 +129,7 @@ PGCS_StructInit(
 {
 	/* Сброс скалярных параметров в значения по умолчанию */
 	pInit_s->pgcs_scalParams_s.alpha 	= (__PGCS_FPT__) 1.0;
-	pInit_s->pgcs_scalParams_s.beta 		= (__PGCS_FPT__) 2.0;
+	pInit_s->pgcs_scalParams_s.beta 	= (__PGCS_FPT__) 2.0;
 	pInit_s->pgcs_scalParams_s.kappa 	= (__PGCS_FPT__) 0.0;
 
 	/* Сброс периода интегрирования */
@@ -431,7 +438,7 @@ PGCS_SetCurrentLLAPos(
  * 			  функций обратной проекции.
  *
  * @param[in, out]    *pData_s:    		Указатель на структуру данных, содержащую
- * 								   		данные кинематики
+ * 								   		данные кинематики и данные проецирования
  *
  * @param[in]    	  *pLatLonAlt:      Указатель на массив (вектор) нулевой
  * 										координаты ДШВ
@@ -441,11 +448,21 @@ PGCS_SetZeroLLAPos(
     pgcs_data_s *pData_s,
     __PGCS_FPT__ *pLatLonAlt)
 {
-	pData_s->kinData_s.lla_pos_zero[0] = *pLatLonAlt++;
-	pData_s->kinData_s.lla_pos_zero[1] = *pLatLonAlt++;
-	pData_s->kinData_s.lla_pos_zero[2] = *pLatLonAlt;
+	pData_s->projData_s.lla_pos_zero[0] = *pLatLonAlt++;
+	pData_s->projData_s.lla_pos_zero[1] = *pLatLonAlt++;
+	pData_s->projData_s.lla_pos_zero[2] = *pLatLonAlt;
 
-	re_c = PGCS_RE * __PGCS_cos(PGCS_PI / ((__PGCS_FPT__) 180.0) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]));
+    pData_s->projData_s.mu = pData_s->projData_s.lla_pos_zero[0];
+    
+    __PGCS_FPT__ t1 = (2. * PGCS_F - PGCS_F * PGCS_F);
+    __PGCS_FPT__ s_mu_sq = __PGCS_sin(mu0 * PGCS_DEGRAD);
+    s_mu_sq *= s_mu_sq;
+    __PGCS_FPT__ t2 = t1 * s_mu_sq;
+    
+    pData_s->projData_s.rn = PGCS_RE / __PGCS_sqrt(1. - t2);
+    pData_s->projData_s.rm = pData_s->projData_s.rn * (1. - t1)/(1. - t2);
+
+	re_c = PGCS_RE * __PGCS_cos(PGCS_DEGRAD) * __PGCS_fabs(pData_s->kinData_s.lla_pos_zero[0]);
 }
 
 /*-------------------------------------------------------------------------*//**
@@ -475,72 +492,7 @@ PGCS_GetProcessedLLAPos(
 
 /*#### |Begin| --> Секция - "Описание локальных функций" #####################*/
 
-/*-------------------------------------------------------------------------*//**
- * @author    Konstantin Ganshin
- * @date      29-Oct-2019
- *
- * @brief     Функция обратного проецирования координат из прямоугольной геоцентрической
- * 			  системы (ECEF) во всемирную систему (WGS84)
- *
- * @param[in,out]	*pData_s:    Указатель на структуру данных, в которой содержатся
- * 								 кинетические данные
- *
- * @param[in]    	*pDPos:      Указатель на массив (вектор) координат приращения позиции
- * 								 в проекционной системе
- */
-void
-PGCS_ECEFToLLAAdd2(
-    pgcs_data_s *pData_s,
-    __PGCS_FPT__ *pDPos)
-{
-	/*					Should be checked						*/
-	__PGCS_FPT__ f = 1. / 298.257223563;		//eciprocal flattening
-	__PGCS_FPT__ b = PGCS_RE * (1. - f);		//semi - minor axis
-	__PGCS_FPT__ b2 = b * b;
 
-	__PGCS_FPT__ e2 = 2.*f - (f * f);							//first eccentricity squared
-	__PGCS_FPT__ ep2 = f * (2. - f) / ((1. - f) * (1. - f));	//second eccentricity squared
-	__PGCS_FPT__ E2 = PGCS_RE * PGCS_RE - b2;
-
-
-	__PGCS_FPT__ z2 = (*(pDPos + 2)) * (*(pDPos + 2));
-	__PGCS_FPT__ r2 = (*(pDPos + 0)) * (*(pDPos + 0)) + (*(pDPos + 1)) * (*(pDPos + 1));
-	__PGCS_FPT__ r = __PGCS_sqrt(r2);
-	__PGCS_FPT__ F = 54. * b2 * z2;
-	__PGCS_FPT__ G = r2 + (1 - e2) * z2 - e2 * E2;
-	__PGCS_FPT__ c = (e2 * e2 * F * r2) / (G * G * G);
-	__PGCS_FPT__ s = __PGCS_pow((1 + c + __PGCS_sqrt(c * c + 2 * c)), 1. / 3.);
-	__PGCS_FPT__ s1 = 1 + s + 1 / s;
-	__PGCS_FPT__ P = F / (3 * s1 * s1 * G * G);
-	__PGCS_FPT__ Q = __PGCS_sqrt(1 + 2 * e2 * e2 * P);
-	__PGCS_FPT__ ro = -(e2 * P * r) / (1 + Q) + __PGCS_sqrt((PGCS_RE * PGCS_RE / 2) * (1 + 1 / Q) - ((1 - e2) * P * z2) / (Q *
-	                  (1 + Q)) - P * r2 / 2);
-	__PGCS_FPT__ tmp = (r - e2 * ro) * (r - e2 * ro);
-	__PGCS_FPT__ U = __PGCS_sqrt(tmp + z2);
-	__PGCS_FPT__ V = __PGCS_sqrt(tmp + (1 - e2) * z2);
-	__PGCS_FPT__ zo = (b2 * (*(pDPos + 2))) / (PGCS_RE * V);
-
-	pData_s->kinData_s.lla_pos[0] = __PGCS_atan(((*(pDPos + 2)) + ep2 * zo) / r) + pData_s->kinData_s.lla_pos_zero[0];
-	pData_s->kinData_s.lla_pos[1] = __PGCS_atan2((*(pDPos + 1)), (*(pDPos + 0))) + pData_s->kinData_s.lla_pos_zero[1];
-	pData_s->kinData_s.lla_pos[2] = U * (1 - b2 / (PGCS_RE * V)) + pData_s->kinData_s.lla_pos_zero[2];
-}
-
-/*-------------------------------------------------------------------------*//**
- * @author    Konstantin Ganshin
- * @date      29-Oct-2019
- *
- * @brief     Функция обратного проецирования координат из прямоугольной геоцентрической
- * 			  системы (ECEF) во всемирную систему (WGS84)
- *
- * @param[in,out]   	*pData_s:    Указатель на структуру данных, в которой содержатся
- * 								 	 кинетические данные
- */
-void
-PGCS_ECEFToLLAAdd1(
-    pgcs_data_s *pData_s)
-{
-	PGCS_ECEFToLLAAdd2(pData_s, pData_s->kinData_s.flat_dpos);
-}
 
 /*-------------------------------------------------------------------------*//**
  * @author    Konstantin Ganshin
@@ -562,9 +514,9 @@ PGCS_FlatToLLA2(
 {
 	PGCS_FlatToDLLA(pDPos, pData_s->kinData_s.lla_pos);
 
-	pData_s->kinData_s.lla_pos[0] = + pData_s->kinData_s.lla_pos_zero[0];
-	pData_s->kinData_s.lla_pos[1] = + pData_s->kinData_s.lla_pos_zero[1];
-	pData_s->kinData_s.lla_pos[2] = + pData_s->kinData_s.lla_pos_zero[2];
+	pData_s->kinData_s.lla_pos[0] = + pData_s->projData_s.lla_pos_zero[0];
+	pData_s->kinData_s.lla_pos[1] = + pData_s->projData_s.lla_pos_zero[1];
+	pData_s->kinData_s.lla_pos[2] = + pData_s->projData_s.lla_pos_zero[2];
 }
 
 /*-------------------------------------------------------------------------*//**
@@ -592,20 +544,56 @@ PGCS_FlatToLLA1(
  * 			  системы (Flat) в приращение координаты во всемирной системе
  * 			  (WGS84)
  *
- * @param[in]    	*pDPosFlat:    Указатель на массив (вектор) координат приращения позиции
- * 								   в проекционной системе
+ * @param[in, out]    	*pProjData:    Указатель на структуру с необходимыми параметрами
+ * 								   		для выполнения операции обратной проекции
+ * 								   		
+ * @param[in]    		*pDPosFlat:    Указатель на массив (вектор) координат приращения позиции
+ * 								   		в проекционной системе (метры, метры, метры)
  * 								   
- * @param[out]    	*pDPosLLA:     Указатель на массив (вектор) координат приращения позиции
- * 								   в глобальной системе
+ * @param[out]    		*pDPosLLA:     Указатель на массив (вектор) координат приращения позиции
+ * 								   		в глобальной системе (градусы, градусы, метры)
  */
 void
 PGCS_FlatToDLLA(
+	pgcs_proj_data_s *pProjData,
 	__PGCS_FPT__ *pDPosFlat,
 	__PGCS_FPT__ *pDPosLLA)
 {
 	*(pDPosLLA + 0) = *(pDPosFlat + 1) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * PGCS_RE);
-	*(pDPosLLA + 1) = *(pDPosFlat + 0) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * re_c);
+	*(pDPosLLA + 1) = *(pDPosFlat + 0) * ((__PGCS_FPT__) 180.0) / (PGCS_PI * pProjData->re_c);
 	*(pDPosLLA + 2) = *(pDPosFlat + 2);
+}
+
+/*-------------------------------------------------------------------------*//**
+ * @author    Konstantin Ganshin
+ * @date      04-Dec-2019
+ *
+ * @brief     Функция обратного проецирования координат из плоскоземельной
+ * 			  системы (Flat) в приращение координаты во всемирной системе
+ * 			  (WGS84). Прецизионный метод, учитывающий искривление планеты
+ *
+ * @param[in, out]    	*pProjData:    Указатель на структуру с необходимыми параметрами
+ * 								   		для выполнения операции обратной проекции
+ * 								   		
+ * @param[in]    		*pDPosFlat:    Указатель на массив (вектор) координат приращения позиции
+ * 								   		в проекционной системе (метры, метры, метры)
+ * 								   
+ * @param[out]    		*pDPosLLA:     Указатель на массив (вектор) координат приращения позиции
+ * 								   		в глобальной системе (градусы, градусы, метры)
+ */
+void
+PGCS_FlatToDLLAprec(
+	pgcs_proj_data_s *pProjData,
+	__PGCS_FPT__ *pDPosFlat,
+	__PGCS_FPT__ *pDPosLLA)
+{
+    *(pDPosLLA + 0) 	= PGCS_RADDEG * __PGCS_atan(1. / (pProjData->rm)) * (*(pDPosFlat+0));
+    pProjData->mu 		+= *(pDPosLLA + 0);
+
+    *(pDPosLLA + 1)  	= PGCS_RADDEG * __PGCS_atan(1. / (pProjData->rn * __PGCS_cos(pProjData->mu * PGCS_DEGRAD))) * (*(pDPosFlat+1));
+
+    *(pDPosLLA + 2)  	= -(*(pDPosFlat+2)) - pProjData->lla_pos_zero[2];
+
 }
 
 /*-------------------------------------------------------------------------*//**
@@ -1152,7 +1140,7 @@ PGCS_Step2_ProragateEachSigmaPointsThroughPrediction(
 	/* Осуществление операции обратного проецирования для получения
 	 * приращения координаты ДШВ */
 	__PGCS_FPT__ deltaPosLLA_a[3u];
-	PGCS_FlatToDLLA(pData_s->kinData_s.flat_dpos, &deltaPosLLA_a);
+	__PGCS_BackProjectCoordSysD(pData_s->projData_s, pData_s->kinData_s.flat_dpos, &deltaPosLLA_a);
 
 	for (size_t i = 0u;
 		 i < ((size_t) PGCS_LEN_SIGMA_COL);
