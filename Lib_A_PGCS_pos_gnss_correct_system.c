@@ -49,7 +49,7 @@ void
 PGCS_FlatToDLLAprec(
 	pgcs_proj_data_s *pProjData,
 	__PGCS_FPT__ *pDPosFlat,
-	__PGCS_FPT__ *pDPosLLA)
+	__PGCS_FPT__ *pDPosLLA);
 
 void
 PGCS_IntegrateFlat(
@@ -455,7 +455,7 @@ PGCS_SetZeroLLAPos(
     pData_s->projData_s.mu = pData_s->projData_s.lla_pos_zero[0];
     
     __PGCS_FPT__ t1 = (2. * PGCS_F - PGCS_F * PGCS_F);
-    __PGCS_FPT__ s_mu_sq = __PGCS_sin(mu0 * PGCS_DEGRAD);
+    __PGCS_FPT__ s_mu_sq = __PGCS_sin(pData_s->projData_s.lla_pos_zero[0] * PGCS_DEGRAD);
     s_mu_sq *= s_mu_sq;
     __PGCS_FPT__ t2 = t1 * s_mu_sq;
     
@@ -512,7 +512,7 @@ PGCS_FlatToLLA2(
     pgcs_data_s *pData_s,
     __PGCS_FPT__ *pDPos)
 {
-	PGCS_FlatToDLLA(pDPos, pData_s->kinData_s.lla_pos);
+	PGCS_FlatToDLLA(&pData_s->projData_s, pDPos, &pData_s->kinData_s.lla_pos[0]);
 
 	pData_s->kinData_s.lla_pos[0] = + pData_s->projData_s.lla_pos_zero[0];
 	pData_s->kinData_s.lla_pos[1] = + pData_s->projData_s.lla_pos_zero[1];
@@ -1140,7 +1140,7 @@ PGCS_Step2_ProragateEachSigmaPointsThroughPrediction(
 	/* Осуществление операции обратного проецирования для получения
 	 * приращения координаты ДШВ */
 	__PGCS_FPT__ deltaPosLLA_a[3u];
-	__PGCS_BackProjectCoordSysD(pData_s->projData_s, pData_s->kinData_s.flat_dpos, &deltaPosLLA_a);
+	__PGCS_BackProjectCoordSysD(&pData_s->projData_s, pData_s->kinData_s.flat_dpos, &deltaPosLLA_a[0]);
 
 	for (size_t i = 0u;
 		 i < ((size_t) PGCS_LEN_SIGMA_COL);

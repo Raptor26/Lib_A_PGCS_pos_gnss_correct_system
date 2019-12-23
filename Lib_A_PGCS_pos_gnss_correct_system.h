@@ -67,6 +67,7 @@
 	#define __PGCS_atan(x)		atanf(x)
 	#define __PGCS_atan2(x, y)	atan2f(x, y)
 	#define __PGCS_cos(x)		cosf(x)
+	#define __PGCS_sin(x)		sinf(x)
 	#define __PGCS_fabs(x)		fabsf(x)
 
 #elif   __PGCS_FPT_SIZE__ == 8
@@ -75,6 +76,7 @@
 	#define __PGCS_atan(x)		atan(x)
 	#define __PGCS_atan2(x, y)	atan2(x, y)
 	#define __PGCS_cos(x)		cos(x)
+	#define __PGCS_sin(x)		sin(x)
 	#define __PGCS_fabs(x)		fabs(x)
 #else
 	#error "Your compiler uses a non-standard floating point size"
